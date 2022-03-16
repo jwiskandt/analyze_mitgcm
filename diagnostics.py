@@ -4,6 +4,24 @@ from scipy import interpolate
 from . import loadMIT
 
 
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]
+
+
 def ot_time(upr, Lx, dz, dy):
     if np.nansum(upr) == 0:
         mot = otp = otn = 0
@@ -210,24 +228,6 @@ def plume(coords, var, ret, sec=False):
         wflx = np.nansum(wflx, axis=0)
         flx = np.nansum(flx, axis=0)
 
-    if "ave" in ret:
-        t_ave = nanave2d(t, pmask, axis=0)
-        s_ave = nanave2d(s, pmask, axis=0)
-        u_ave = nanave2d(u, pmask, axis=0)
-        w_ave = nanave2d(w, pmask, axis=0)
-
-    if "max" in ret:
-        t_max = np.nanmax(t, axis=0)
-        s_max = np.nanmax(s, axis=0)
-        u_max = np.nanmax(u, axis=0)
-        w_max = np.nanmax(w, axis=0)
-
-    if "min" in ret:
-        t_min = np.nanmin(t, axis=0)
-        s_min = np.nanmin(s, axis=0)
-        u_min = np.nanmin(u, axis=0)
-        w_min = np.nanmin(w, axis=0)
-
     ret_dic = {
         "d": d,
         "thick": thick,
@@ -242,33 +242,6 @@ def plume(coords, var, ret, sec=False):
                 "flx": flx,
                 "uflx": uflx,
                 "wflx": wflx,
-            }
-        )
-    if "ave" in ret:
-        ret_dic.update(
-            {
-                "t_ave": t_ave,
-                "s_ave": s_ave,
-                "u_ave": u_ave,
-                "w_ave": w_ave,
-            }
-        )
-    if "max" in ret:
-        ret_dic.update(
-            {
-                "t_max": t_max,
-                "s_max": s_max,
-                "u_max": u_max,
-                "w_max": w_max,
-            }
-        )
-    if "min" in ret:
-        ret_dic.update(
-            {
-                "t_min": t_min,
-                "s_min": s_min,
-                "u_min": u_min,
-                "w_min": w_min,
             }
         )
 
