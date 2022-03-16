@@ -487,16 +487,13 @@ def plot_plume(figname, path, sec=False):
 
     exp, geo = get_expgeo(path)
 
-    heights = [1, 1, 3, 3, 3]
+    heights = [3, 3, 3, 3]
     fig1 = plt.figure(figsize=(8, 8))
-    gs1 = GridSpec(5, 1, figure=fig1, height_ratios=heights)
+    gs1 = GridSpec(4, 1, figure=fig1, height_ratios=heights)
     ax11 = fig1.add_subplot(gs1[0, :])
     ax12 = fig1.add_subplot(gs1[1, :])
     ax13 = fig1.add_subplot(gs1[2, :])
     ax14 = fig1.add_subplot(gs1[3, :])
-    ax15 = fig1.add_subplot(gs1[4, :])
-
-    ax11.plot(coords[0]["x"] / 1000, coords[0]["ice"] / 1000, color="black")
 
     fig2 = plt.figure(figsize=(8, 6))
     gs2 = GridSpec(3, 3, figure=fig2)
@@ -516,7 +513,8 @@ def plot_plume(figname, path, sec=False):
 
     for vi in np.arange(0, np.shape(data)[0]):
         plume = diagnostics.plume(coords[vi], data[vi], ["flx"], sec=sec)
-        d = plume["d"] / 1000
+        x = np.squeeze(plume["d"] / 1000)
+        d = plume["thick"]
         taw = np.nanmax(data[vi]["tref"])
         ice = coords[vi]["ice"]
         tref = data[vi]["tref"][-1]
@@ -540,22 +538,25 @@ def plot_plume(figname, path, sec=False):
 
         t_f = lam1 * s_ice + lam2 + ice * lam3
 
-        nans, x = diagnostics.nan_helper(vel_ice)
-        vel_ice[nans] = np.interp(x(nans), x(~nans), vel_ice[~nans])
-        nans, x = diagnostics.nan_helper(s_ice)
-        s_ice[nans] = np.interp(x(nans), x(~nans), s_ice[~nans])
-        nans, x = diagnostics.nan_helper(s_ave)
-        s_ave[nans] = np.interp(x(nans), x(~nans), s_ave[~nans])
-        nans, x = diagnostics.nan_helper(t_ice)
-        t_ice[nans] = np.interp(x(nans), x(~nans), t_ice[~nans])
-        nans, x = diagnostics.nan_helper(t_ave)
-        t_ave[nans] = np.interp(x(nans), x(~nans), t_ave[~nans])
+        nans, i = diagnostics.nan_helper(vel_ice)
+        vel_ice[nans] = np.interp(i(nans), i(~nans), vel_ice[~nans])
+        nans, i = diagnostics.nan_helper(s_ice)
+        s_ice[nans] = np.interp(i(nans), i(~nans), s_ice[~nans])
+        nans, i = diagnostics.nan_helper(s_ave)
+        s_ave[nans] = np.interp(i(nans), i(~nans), s_ave[~nans])
+        nans, i = diagnostics.nan_helper(t_ice)
+        t_ice[nans] = np.interp(i(nans), i(~nans), t_ice[~nans])
+        nans, i = diagnostics.nan_helper(t_ave)
+        t_ave[nans] = np.interp(i(nans), i(~nans), t_ave[~nans])
+        nans, i = diagnostics.nan_helper(d)
+        d[nans] = np.interp(i(nans), i(~nans), d[~nans])
 
-        sa_fil = uniform_filter1d(s_ave, size=50)
-        si_fil = uniform_filter1d(s_ice, size=50)
-        vel_fil = uniform_filter1d(vel_ice, size=50)
-        ti_fil = uniform_filter1d(t_ice, size=50)
-        ta_fil = uniform_filter1d(t_ave, size=50)
+        sa_fil = uniform_filter1d(s_ave, size=20)
+        si_fil = uniform_filter1d(s_ice, size=20)
+        vel_fil = uniform_filter1d(vel_ice, size=20)
+        ti_fil = uniform_filter1d(t_ice, size=20)
+        ta_fil = uniform_filter1d(t_ave, size=20)
+        d_fil = uniform_filter1d(d, size=20)
 
         s_buo = (sa_fil - sref) * sBeta * rnil * g
         t_buo = (ta_fil - tref) * tAlpha * rnil * g
@@ -566,34 +567,36 @@ def plot_plume(figname, path, sec=False):
 
         flx = plume["flx"]
 
-        ax12.plot(coords[0]["x"] / 1000, plume["thick"], color="black")
+        print(np.shape(x))
+        print(np.shape(d_fil))
+        ax11.plot(x, d_fil, color=color)
         # ax13.plot(
         #    d, s_ice - 35, color=color, linestyle=line, alpha=0.1, label="_nolegend_"
         # )
-        ax13.plot(
-            d,
-            si_fil,
+        ax12.plot(
+            x,
+            si_fil - sref,
             color=color,
             linestyle=line,
             alpha=0.7,
         )
-        ax14.plot(
-            d,
-            ti_fil,
+        ax13.plot(
+            x,
+            ti_fil - tref,
             color=color,
             linestyle=line,
             alpha=0.7,
             label=path[vi],
         )
-        ax15.plot(d, vel_fil, color=color, linestyle=line, alpha=0.7, label=path[vi])
-        ax15.plot(
-            d, vel_ice, color=color, linestyle=line, alpha=0.1, label="_nolegend_"
+        ax14.plot(x, vel_fil, color=color, linestyle=line, alpha=0.7, label=path[vi])
+        ax14.plot(
+            x, vel_ice, color=color, linestyle=line, alpha=0.1, label="_nolegend_"
         )
 
         # ------------Figure 2-------------
 
-        ax21.plot(d, flx, color=color, linestyle=line, alpha=0.7, label=path[vi])
-        ax22.plot(d, np.nancumsum(melt), color=color, linestyle=line, alpha=0.7)
+        ax21.plot(x, flx, color=color, linestyle=line, alpha=0.7, label=path[vi])
+        ax22.plot(x, np.nancumsum(melt), color=color, linestyle=line, alpha=0.7)
         # ax23.plot(
         #    d,
         #    np.cumsum(-SHIflx[vi]["fwfx"] / 1000) / flx,
@@ -612,9 +615,9 @@ def plot_plume(figname, path, sec=False):
             tlabel = "Temp"
             slabel = "Sal"
             label = "Total"
-            ax31.plot(d, s_buo, color="k", linestyle="-", alpha=0.7, label=label)
-            ax31.plot(d, s_buo, color="k", linestyle="--", alpha=0.7, label=tlabel)
-            ax31.plot(d, s_buo, color="k", linestyle=":", alpha=0.7, label=slabel)
+            ax31.plot(x, s_buo + 10, color="k", linestyle="-", alpha=0.7, label=label)
+            ax31.plot(x, s_buo + 10, color="k", linestyle="--", alpha=0.7, label=tlabel)
+            ax31.plot(x, s_buo + 10, color="k", linestyle=":", alpha=0.7, label=slabel)
 
         else:
             tlabel = "_nolegend"
@@ -622,10 +625,10 @@ def plot_plume(figname, path, sec=False):
             label = "_nolegend"
 
         ax31.plot(
-            d, s_buo + t_buo, color=color, linestyle=line, alpha=0.7, label=path[vi]
+            x, s_buo + t_buo, color=color, linestyle=line, alpha=0.7, label=path[vi]
         )
-        ax31.plot(d, t_buo, color=color, linestyle="--", alpha=0.7)
-        ax31.plot(d, s_buo, color=color, linestyle=":", alpha=0.7)
+        ax31.plot(x, s_buo, color=color, linestyle=":", alpha=0.7)
+        ax31.plot(x, t_buo, color=color, linestyle="--", alpha=0.7)
         ax32.plot(
             tref,
             np.nanmean(t_buo[0 : np.nanargmax(flx)] + s_buo[0 : np.nanargmax(flx)]),
@@ -635,31 +638,27 @@ def plot_plume(figname, path, sec=False):
         ax33.plot(tref, np.nanmean(s_buo[0 : np.nanargmax(flx)]), marker, color=color)
         ax34.plot(tref, np.nanmean(t_buo[0 : np.nanargmax(flx)]), marker, color=color)
 
-    # ax11.set_xticklabels([])
-    ax11.set_ylabel("Ice depth")
+    ax11.set_ylabel("Plume \nthickness")
     ax11.grid("both")
     ax11.set_xlim(0, 20.5)
 
-    ax12.set_ylabel("Plume \nthickness")
+    ax12.set_xticklabels([])
+    ax12.set_ylabel("$S_{BL}-S_{AW}$")
     ax12.grid("both")
     ax12.set_xlim(0, 20.5)
+    ax12.set_ylim(-0.21, 0.01)
+    ax12.ticklabel_format(axis="y", style="sci", scilimits=[-2, 2])
 
     ax13.set_xticklabels([])
-    ax13.set_ylabel("BL Salinity")
+    ax13.set_ylabel("$T_{BL}-T_{AW}$")
     ax13.grid("both")
+    ax13.set_ylim(-1.21, 0.01)
     ax13.set_xlim(0, 20.5)
-    ax13.set_ylim(34.79, 35.01)
-    ax13.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
 
-    ax14.set_xticklabels([])
-    ax14.set_ylabel("BL Temperature")
+    ax14.set_ylabel("BL veloctiy")
+    ax14.set_xlabel("distance along Ice")
     ax14.grid("both")
     ax14.set_xlim(0, 20.5)
-
-    ax15.set_ylabel("BL veloctiy")
-    ax15.set_xlabel("distance along Ice")
-    ax15.grid("both")
-    ax15.set_xlim(0, 20.5)
 
     # ------------Figure 2-------------
     ax21.set_xticklabels([])
@@ -702,22 +701,22 @@ def plot_plume(figname, path, sec=False):
     ax31.legend()
 
     ax32.set_ylabel("Plume Buoyancy\ntotal")
-    ax32.set_ylim(0.19, 0.37)
+    ax32.set_ylim(0.19, 0.51)
     ax32.grid("both")
 
     ax33.set_ylabel("Sal")
-    ax33.set_ylim(0.19, 0.37)
+    ax33.set_ylim(0.19, 0.51)
     ax33.grid("both")
 
     ax34.set_ylabel("Temp")
-    ax34.set_ylim(-0.18, 0)
+    ax34.set_ylim(-0.32, 0)
     ax34.grid("both")
 
     fig1.tight_layout()
     fig2.tight_layout()
     fig3.tight_layout()
 
-    ax15.legend(loc="center right", ncol=1)  # , bbox_to_anchor=(-0.00, 0))
+    ax14.legend(loc="center right", ncol=1)  # , bbox_to_anchor=(-0.00, 0))
     ax21.legend(loc="center right", ncol=1)  # , bbox_to_anchor=(-0.00, 0))
     fig1.savefig("plots/tsu" + figname, facecolor="white")
     fig2.savefig("plots/flux" + figname, facecolor="white")
