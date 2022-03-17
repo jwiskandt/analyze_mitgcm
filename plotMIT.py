@@ -609,6 +609,11 @@ def plot_plume(figname, path, sec=False):
         ax25.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color, label=path[vi])
         ax26.plot(taw, cmelt[np.nanargmax(flx)] / np.nanmax(flx), marker, color=color)
 
+        print(taw)
+        print(np.nanmax(flx))
+        print(cmelt[np.nanargmax(flx)])
+        print(cmelt[np.nanargmax(flx)] / np.nanmax(flx))
+
         # ------------Figure 3-------------
 
         if vi == 0:
