@@ -19,14 +19,14 @@ def timeseries(path, start, stop, step, which=[], freq=360):
             var = loadMIT.load_tsu(coords, path[i], start, stop, step, freq=freq)
             with open(varfile, "wb") as a_file:
                 pickle.dump(var, a_file)
-        # if "SHI" in which or not which:
-        #     SHIflx = loadMIT.load_SHIflux(coords, path[i], start, stop, step, freq=freq)
-        #     with open(SHIflxfile, "wb") as a_file:
-        #         pickle.dump(SHIflx, a_file)
-        # if "gamma" in which or not which:
-        #     gamma = loadMIT.load_gamma(path[i], start, stop, step, freq=freq)
-        #     with open(gammafile, "wb") as a_file:
-        #         pickle.dump(gamma, a_file)
+        if "SHI" in which or not which:
+            SHIflx = loadMIT.load_SHIflux(coords, path[i], start, stop, step, freq=freq)
+            with open(SHIflxfile, "wb") as a_file:
+                pickle.dump(SHIflx, a_file)
+        if "gamma" in which or not which:
+            gamma = loadMIT.load_gamma(path[i], start, stop, step, freq=freq)
+            with open(gammafile, "wb") as a_file:
+                pickle.dump(gamma, a_file)
 
 
 def timeave(path, start, stop, step, which=[], freq=[]):
@@ -42,11 +42,11 @@ def timeave(path, start, stop, step, which=[], freq=[]):
             var = loadMIT.load_tsu(coords, path[i], start, stop, step, freq=freq)
             with open(varfile, "wb") as a_file:
                 pickle.dump(var, a_file)
-        # if "SHI" in which or not which:
-        #     SHIflx = loadMIT.load_SHIflux(coords, path[i], start, stop, step, freq=freq)
-        #     with open(SHIflxfile, "wb") as a_file:
-        #         pickle.dump(SHIflx, a_file)
-        # if "gamma" in which or not which:
-        #     gamma = loadMIT.load_gamma(path[i], start, stop, step, freq=freq)
-        #     with open(gammafile, "wb") as a_file:
-        #         pickle.dump(gamma, a_file)
+        if "SHI" in which or not which:
+            SHIflx = loadMIT.load_SHIflux(coords, path[i], start, stop, step, freq=freq)
+            with open(SHIflxfile, "wb") as a_file:
+                pickle.dump(SHIflx, a_file)
+        if "gamma" in which or not which:
+            gamma = loadMIT.load_gamma(path[i], start, stop, step, freq=freq)
+            with open(gammafile, "wb") as a_file:
+                pickle.dump(gamma, a_file)
