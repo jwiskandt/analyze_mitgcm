@@ -339,7 +339,7 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
     # axs[1].plot(var[0]["sref"], coords["z"] / 1000, "--k", label="sref")
     axs[1].grid("both")
     axs[1].set_ylim(-1.050, 0.050)
-    # axs[1].set_xlim(34.85, 35)
+    axs[1].set_xlim(34.9, 35)
     axs[1].set_xlabel("Salinity Difference")
 
     axs[2].grid("both")
@@ -420,20 +420,20 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
             axs[3].plot(SG, TG, "--k", label="Gade ")
 
         for i in np.arange(0, np.shape(prx)[0]):
-            # axs[0].plot(
-            #     tref,
-            #     coords["z"] / 1000,
-            #     ":",
-            #     color=color,
-            # )
             axs[0].plot(
-                tpr[vi, i, :] - tref,
+                tref,
+                z / 1000,
+                ":",
+                color=color,
+            )
+            axs[0].plot(
+                tpr[vi, i, :],  # - tref,
                 z / 1000,
                 line,
                 color=color,
             )
             axs[1].plot(
-                spr[vi, i, :] - sref,
+                spr[vi, i, :],  # - sref,
                 z / 1000,
                 line,
                 color=color,
@@ -645,7 +645,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         tref = data[vi]["tref"][-1]
         sref = data[vi]["sref"][-1]
 
-        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000
+        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
         cmelt = np.nancumsum(melt)
 
         color, line, marker = identify(path[vi], tref)

@@ -220,7 +220,7 @@ def plume(coords, var, ret, sec=False):
 
     if "flx" in ret:
         uflx = u * hfac * dz
-        wflx = w * hfac * dx
+        wflx = w * dx
 
         flx = np.sqrt(uflx**2 + wflx**2)
 
