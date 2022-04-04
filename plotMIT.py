@@ -645,7 +645,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         tref = data[vi]["tref"][-1]
         sref = data[vi]["sref"][-1]
 
-        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * 365 * 86400
+        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000
         cmelt = np.nancumsum(melt)
 
         color, line, marker = identify(path[vi], tref)
