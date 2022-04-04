@@ -1,9 +1,11 @@
+from turtle import width
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib import cm
 from scipy import interpolate
 import pickle
+import csv
 from scipy.ndimage.filters import uniform_filter1d
 
 # import gsw
@@ -65,47 +67,31 @@ def load_single(path, which):
     return data, coords, SHIflx, gammas
 
 
-def get_expgeo(path):
-
-    exp = np.zeros([np.shape(path)[0]], "int")
-    geo = np.zeros([np.shape(path)[0]], "int")
-    last = np.array([x[12:] for x in path])
-
-    for vi in np.arange(0, np.shape(path)[0]):
-        # How many layers
-
-        if path[vi][0] == "1":
-            geo[vi] = 0
-        elif path[vi][0] == "2":
-            geo[vi] = 2
-        # how many slopes (if 2SLOPE add one to geo)
-        if path[vi][5] == "2":
-            geo[vi] += 1
-
-        # variation from control
-        if len(path[vi]) < 12:
-            exp[vi] = 0
-            last[vi] = "cont"
-
-    lastset = list(OrderedSet(last))
-    for n in lastset:
-        indi = lastset.index(n)
-        ns = [i for i in range(len(last)) if last[i] == n]
-        exp[ns] = indi
-
-    return exp, geo - 2
-
-
-def load_colors():
-
-    return cm.get_cmap("viridis_r")
-
-
-def load_lines():
+def identify(path, tref):
 
     lines = ["-", ":", "--", ":", "-."]
     markers = ["o", "x", "v", "^", "<", ">", "d"]
-    return lines, markers
+    colors = cm.get_cmap("cividis")
+    colors2 = cm.get_cmap("copper")
+
+    if "control" in path:
+        marker = markers[-1]
+        line = lines[-1]
+        color = "k"
+    elif "SGD" in path:
+        marker = markers[1]
+        color = colors((tref + 2.5) / 10)
+        line = lines[1]
+    elif "NU" in path:
+        marker = markers[2]
+        color = colors2((int(path[-1]) - 4) / 2)
+        line = lines[2]
+    else:
+        marker = markers[0]
+        color = colors((tref + 2.5) / 10)
+        line = lines[0]
+
+    return color, line, marker
 
 
 def init_uts(var):
@@ -152,8 +138,6 @@ def init_prof(coords, var, prx):
 
 
 def plot_sec(figname, path, vi, prx):
-    colors = load_colors()
-    color = colors(0.9)
     tAlpha = (-0.4e-4,)
     sBeta = (8.0e-4,)
     rnil = 999.8
@@ -176,10 +160,17 @@ def plot_sec(figname, path, vi, prx):
         u[z > ice[i], i] = float("nan")
         w[z > ice[i], i] = float("nan")
 
-    psi = np.flipud(np.nancumsum(np.flip(u, axis=0) * dx, axis=0))
-    print(np.shape(u))
+    psi = np.flipud(np.nancumsum(np.flip(u, axis=0) * dz, axis=0))
     r = rnil * (1 + tAlpha * t + sBeta * s) - 1000
-    np.shape(r)
+
+    rgrid = np.linspace(27.7, np.nanmax(r), 101)
+    psi_r = np.zeros([np.shape(rgrid)[0], np.shape(x)[0]])
+
+    for i in np.arange(0, len(x)):
+        for ri in np.arange(0, len(rgrid)):
+            ind = np.nonzero(r[:, i] > rgrid[ri])[0]
+            if np.any(ind):
+                psi_r[ri, i] = np.nansum(np.flip(u[ind, i], axis=0), axis=0) * -dz
 
     # tinit = np.squeeze(np.reshape(data[vi]["tinit"], np.shape(r)))
     # sinit = np.squeeze(np.reshape(data[vi]["sinit"], np.shape(r)))
@@ -189,52 +180,58 @@ def plot_sec(figname, path, vi, prx):
     dep = coords[vi]["topo"]
     icei = np.arange(0, np.shape(ice[ice < 0])[0] + 1)
 
-    [fig, axs] = plt.subplots(1, 1, figsize=(12, 6))
+    [fig, axs] = plt.subplots(2, 1, figsize=(8, 8))
 
     if prx is not None:
         for i in np.arange(0, np.shape(prx)[0]):
-            axs.plot(np.ones(coords[vi]["nz"]) * prx[i] / 1000, z / 1000, "--k")
+            axs[0].plot(np.ones(coords[vi]["nz"]) * prx[i] / 1000, z / 1000, "--k")
 
-    cf0 = axs.contourf(
+    cf0 = axs[0].contourf(
         x / 1000,
         z / 1000,
         r,
-        32,  # np.linspace(-0.2, 0.2, 21),
+        np.linspace(27.7, 27.78, 21),
         cmap="viridis_r",
         extend="both",
     )
 
-    axs.contour(
+    axs[0].contour(
         x / 1000,
         z / 1000,
-        -psi,
-        np.arange(2.5, 30, 2.5),
+        psi,
+        np.linspace(1, 10, 10),
         colors="white",
         alpha=0.5,
     )
-    axs.plot(x / 1000, dep / 1000, "k", linewidth=2)
-    axs.plot(x[icei] / 1000, ice[icei] / 1000, "k", linewidth=2)
-    axs.set_title("Exp: {} - Day {}-{}".format(path[vi], time[0], time[-1]))
-    axs.set_xlabel("Distance from grounding line [km]")
-    axs.set_ylabel("depth in [km]")
+    axs[0].plot(x / 1000, dep / 1000, "k", linewidth=2)
+    axs[0].plot(x[icei] / 1000, ice[icei] / 1000, "k", linewidth=2)
+    axs[0].set_title("Exp: {} - Day {}-{}".format(path[vi], time[0], time[-1]))
+    axs[0].set_xlabel("Distance from grounding line [km]")
+    axs[0].set_ylabel("depth in [km]")
 
     if SHIflx[i] == 0:
-        cbar = fig.colorbar(
-            cf0, ax=axs, orientation="horizontal", fraction=0.1, anchor=(1.0, 0.1)
+        cbar1 = fig.colorbar(
+            cf0, ax=axs[0], orientation="horizontal", fraction=0.1, anchor=(1.0, 0.1)
         )
     else:
         fwf = SHIflx[vi]["fwfx"]
 
         fwf[ice > 0] = np.nan
-        melt = np.nansum(fwf) / 1000 * dz * dy
-        print(melt)
-        axs.text(
+        meltflux = np.nansum(fwf) / 1000 * dx * dy
+        melt = np.nanmean(fwf) / 1000 * 86400 * 365
+        axs[0].text(
             1,
             -0.1,
-            "Melt flux: \n{melt:7.3f} m^3/year".format(melt=melt),
+            r"Melt flux: ${:7.3f} m^3/s$".format(meltflux),
             fontsize=14,
         )
-        ax02 = axs.twinx()
+        axs[0].text(
+            1,
+            -0.2,
+            r"Ave melt rate: ${:5.1f} m/yr$".format(melt),
+            fontsize=14,
+        )
+        ax02 = axs[0].twinx()
         ax02.plot(x / 1000, fwf, color="green")
         ax02.set_ylabel("fresh water flux")
         ax02.tick_params(axis="y", colors="green")
@@ -242,10 +239,27 @@ def plot_sec(figname, path, vi, prx):
         ax02.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
         ax02.set_xlim(0, 30)
         ax02.set_ylim(2 * np.nanmin(fwf), 0)
-        cbar = fig.colorbar(
-            cf0, ax=ax02, orientation="horizontal", fraction=0.08, anchor=(1.0, 0.1)
-        )
-    cbar.set_label("Sigma")
+        cbar1 = fig.colorbar(
+            cf0, ax=ax02, orientation="horizontal", fraction=0.08
+        )  # , anchor=(1.0, 0.1)
+
+    cf1 = axs[1].contourf(
+        x / 1000,
+        rgrid,
+        -psi_r,
+        np.linspace(0, 10, 11),
+        cmap="Reds",
+        extend="both",
+    )
+    axs[1].set_xlabel("Distance from grounding line [km]")
+    axs[1].set_ylabel("Sigma")
+    axs[1].set_xlim([0, 30])
+    axs[1].set_ylim([27.73, 27.78])
+    axs[1].invert_yaxis()
+    cbar2 = fig.colorbar(cf1, ax=axs[1], orientation="horizontal", fraction=0.08)
+
+    cbar1.set_label("Sigma")
+    cbar2.set_label("Transport Stream function")
     plt.tight_layout()
     fig.savefig("plots/" + path[vi] + figname, facecolor="white")
     plt.show()
@@ -253,10 +267,6 @@ def plot_sec(figname, path, vi, prx):
 
 
 def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
-    colors = load_colors()
-    lines, markers = load_lines()
-
-    exp, geo = get_expgeo(path)
 
     t, s, u, w = init_uts(data)
     upr, spr, tpr = init_prof(coords[0], data, prx)
@@ -268,6 +278,7 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
     pri = np.zeros([np.shape(prx)[0]])
     sref = data[0]["sref"]
     dz = -coords[0]["dz"][0]
+    dy = coords[0]["dx"][0]
 
     for vi in np.arange(0, np.shape(data)[0]):
         t[vi, :, :], s[vi, :, :], u[vi, :, :], w[vi, :, :] = loadMIT.ave_tsu(
@@ -289,6 +300,9 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
                 coords[vi], upr[vi, i], Qout=True
             )
 
+    ds = 0.01
+    s = np.arange(34.7, 35 + ds, ds)
+    strans = np.zeros([np.shape(path)[0], np.shape(s)[0]])
     # sflx = (
     #     np.nansum(dels * upr, axis=2)
     #     / np.shape(upr)[2]
@@ -297,7 +311,7 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
     #     * 24
     #     * 365
     # )
-    sflx = np.nansum(dels * upr, axis=2) / np.max(sref) * dz
+    sflx = np.nansum(dels * upr, axis=2) / np.max(sref) * dz * dy
     tAlpha = (-0.4e-4,)
     sBeta = (8.0e-4,)
     mot = np.array(mot)
@@ -307,7 +321,7 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
     tpr = np.array(tpr)
     spr = np.array(spr)
 
-    fig = plt.figure(figsize=(12, 12))
+    fig = plt.figure(figsize=(8, 8))
     ax1 = plt.subplot(3, 2, 1)
     ax2 = plt.subplot(3, 2, 2)
     ax3 = plt.subplot(3, 2, 3)
@@ -330,7 +344,7 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
 
     axs[2].grid("both")
     axs[2].set_ylim(-1.050, 0.050)
-    axs[2].set_xlim(27.490, 27.81)
+    axs[2].set_xlim(27.490, 27.91)
     axs[2].set_xlabel("Sigma0")
     axs[2].set_ylabel("depth [km]")
 
@@ -344,9 +358,10 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
     axs[4].set_xlabel("$T_{AW}$")
 
     axs[5].grid("both")
-    axs[5].set_xlim(34.7, 35)
     axs[5].set_ylabel("Volume transport [$m^2/s$]")
     axs[5].set_xlabel("Salinity")
+    axs[5].set_xticks(s[::2])
+    axs[5].set_xlim(34.87, 35.01)
 
     # sam, ctm = np.meshgrid(
     #     np.arange(33.9, 35.1, 0.05),
@@ -378,16 +393,27 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
     for vi in np.arange(0, np.shape(data)[0]):
         i = 0
         rpr = 999.8 * (1 + tAlpha * tpr[vi, i, :] + sBeta * spr[vi, i, :]) - 1000
-        print(path[vi])
         rmax = rpr[np.nanargmax(upr[vi, i, :])]
         z = coords[vi]["z"]
         zmax = coords[vi]["z"][np.nanargmax(upr[vi, i, :])]
-        color = colors(exp[vi] / np.max(exp))
-        line = lines[geo[vi]]
-        marker = markers[geo[vi]]
-
         tref = data[vi]["tref"]
+
+        color, line, marker = identify(path[vi], tref[-1])
+
+        soff = ((tref[-1] + 2.5) / 10) * ds * 0.9
+        print(soff)
+
         rpref = 999.8 * (1 + tAlpha * tref + sBeta * sref) - 1000
+        n = 0
+        for ss in s:
+            ind = np.where(
+                (spr[vi, i, :] > ss - ds / 2) & (spr[vi, i, :] < ss + ds / 2)
+            )[0]
+            if np.any(ind):
+                strans[vi, n] = np.nansum(upr[vi, i, ind]) / np.nansum(
+                    np.abs(upr[vi, i, :])
+                )
+            n += 1
 
         if Gade:
             TG, SG = diagnostics.gadeline(tpr[vi, i, :], spr[vi, i, :], z)
@@ -432,14 +458,6 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
                 marker,
                 color=color,
             )
-            # axs[3].plot(
-            #     spr[vi, i, :],
-            #     tpr[vi, i, :],
-            #     marker,
-            #     fillstyle="none",
-            #     color=color,
-            #     label=path[vi],
-            # )
             axs[3].plot(
                 upr[vi, i, :],
                 z / 1000,
@@ -447,31 +465,26 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
                 color=color,
             )
             axs[4].plot(
-                np.max(tref),
+                tref[-1],
                 -sflx[vi, i],
                 marker,
                 color=color,
             )
-            axs[5].plot(
-                spr[vi, i, :],
-                upr[vi, i, :],
-                line,
-                color=color,
-            )
-            # axs[5].plot(
-            #     sflx[vi, i, :],
-            #     coords["z"] / 1000,
-            #     line,
-            #     color=color,
-            # )
+            axs[5].bar(s + soff, strans[vi, :], color=color, width=0.0007)
+        # axs[5].plot(
+        #     spr[vi, i, :],
+        #     upr[vi, i, :],
+        #     line,
+        #     color=color,
+        # )
 
     plt.tight_layout()
-    axs[1].legend(loc="lower center", bbox_to_anchor=(-0.1, 0), ncol=2)
+    axs[1].legend(loc="lower center", bbox_to_anchor=(-0.1, -0.5), ncol=2)
     fig.savefig("plots/" + fig_name, facecolor="white")
     fig.show()
 
 
-def plot_plume(figname, path, sec=False):
+def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
     importlib.reload(diagnostics)
     lam1 = -5.75e-2
     lam2 = 9.01e-2
@@ -480,52 +493,162 @@ def plot_plume(figname, path, sec=False):
     sBeta = (8.0e-4,)
     rnil = 999.8
     g = -9.81
-    colors = load_colors()
-    lines, markers = load_lines()
     z = coords[0]["z"]
     dx = coords[0]["dx"][0]
 
-    exp, geo = get_expgeo(path)
+    if "tsu" in which:
+        heights = [3, 3, 3, 3]
+        fig1 = plt.figure(figsize=(8, 8))
+        gs1 = GridSpec(4, 1, figure=fig1, height_ratios=heights)
+        ax11 = fig1.add_subplot(gs1[0, :])
+        ax12 = fig1.add_subplot(gs1[1, :])
+        ax13 = fig1.add_subplot(gs1[2, :])
+        ax14 = fig1.add_subplot(gs1[3, :])
 
-    heights = [3, 3, 3, 3]
-    fig1 = plt.figure(figsize=(8, 8))
-    gs1 = GridSpec(4, 1, figure=fig1, height_ratios=heights)
-    ax11 = fig1.add_subplot(gs1[0, :])
-    ax12 = fig1.add_subplot(gs1[1, :])
-    ax13 = fig1.add_subplot(gs1[2, :])
-    ax14 = fig1.add_subplot(gs1[3, :])
+        ax11.set_ylabel("Plume \nthickness")
+        ax11.grid("both")
+        ax11.set_xlim(0, 20.5)
 
-    fig2 = plt.figure(figsize=(8, 6))
-    gs2 = GridSpec(3, 3, figure=fig2)
-    ax21 = fig2.add_subplot(gs2[0, :])
-    ax22 = fig2.add_subplot(gs2[1, :])
-    # ax23 = fig2.add_subplot(gs2[2, :])
-    ax24 = fig2.add_subplot(gs2[2, 0])
-    ax25 = fig2.add_subplot(gs2[2, 1])
-    ax26 = fig2.add_subplot(gs2[2, 2])
+        ax12.set_xticklabels([])
+        ax12.set_ylabel("$S_{BL}-S_{AW}$")
+        ax12.grid("both")
+        ax12.set_xlim(0, 20.5)
+        ax12.set_ylim(-0.21, 0.01)
+        ax12.ticklabel_format(axis="y", style="sci", scilimits=[-2, 2])
 
-    fig3 = plt.figure(figsize=(8, 6))
-    gs3 = GridSpec(2, 3, figure=fig3)
-    ax31 = fig3.add_subplot(gs3[0, :])
-    ax32 = fig3.add_subplot(gs3[1, 0])
-    ax33 = fig3.add_subplot(gs3[1, 1])
-    ax34 = fig3.add_subplot(gs3[1, 2])
+        ax13.set_xticklabels([])
+        ax13.set_ylabel("$T_{BL}-T_{AW}$")
+        ax13.grid("both")
+        ax13.set_ylim(-1.4, 0.01)
+        ax13.set_xlim(0, 20.5)
+
+        ax14.set_ylabel("BL veloctiy")
+        ax14.set_xlabel("distance along Ice")
+        ax14.grid("both")
+        ax14.set_xlim(0, 20.5)
+
+    if "flux" in which:
+        fig2 = plt.figure(figsize=(8, 6))
+        gs2 = GridSpec(3, 3, figure=fig2)
+        ax21 = fig2.add_subplot(gs2[0, :])
+        ax22 = fig2.add_subplot(gs2[1, :])
+        ax23 = fig2.add_subplot(gs2[2, 0])
+        ax24 = fig2.add_subplot(gs2[2, 1])
+        ax25 = fig2.add_subplot(gs2[2, 2])
+
+        ax21.set_xticklabels([])
+        ax21.set_ylabel("Plume Flux [m^2/s]")
+        ax21.grid("both")
+        ax21.set_xlim(0, 20.5)
+
+        ax22.set_ylabel("melt from ice")
+        ax22.set_xlabel("dist along ice")
+        ax22.set_xticklabels([])
+        ax22.grid("both")
+        ax22.set_xlim(0, 20.5)
+
+        ax23.set_ylabel("Plume Vol. Flux \n(QP) [m^2/s]")
+        ax23.set_xlabel("AW Temperature")
+        ax23.grid("both")
+
+        ax24.set_ylabel("Cummulative Melt \n(M)[m^2/s]")
+        ax24.set_xlabel("AW Temperature")
+        ax24.grid("both")
+
+        ax25.set_ylabel("sum(M)/max(QP)")
+        ax25.set_xlabel("AW Temperature")
+        ax25.grid("both")
+        ax25.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+
+    if "buoy" in which:
+        fig3 = plt.figure(figsize=(8, 6))
+        gs3 = GridSpec(2, 3, figure=fig3)
+        ax31 = fig3.add_subplot(gs3[0, :])
+        ax32 = fig3.add_subplot(gs3[1, 0])
+        ax33 = fig3.add_subplot(gs3[1, 1])
+        ax34 = fig3.add_subplot(gs3[1, 2])
+
+        ax31.set_xticklabels([])
+        ax31.set_ylabel("Plume Buoyancy\ntotal")
+        ax31.grid("both")
+        ax31.set_xlim(0, 20.5)
+        ax31.set_ylim(-0.25, 0.51)
+        ax31.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+        ax31.legend()
+
+        ax32.set_ylabel("Plume Buoyancy\ntotal")
+        ax32.set_ylim(-0.01, 0.51)
+        ax32.grid("both")
+
+        ax33.set_ylabel("Sal")
+        ax33.set_ylim(-0.01, 0.51)
+        ax33.grid("both")
+
+        ax34.set_ylabel("Temp")
+        ax34.set_ylim(-0.61, 0.01)
+        ax34.grid("both")
+
+    if "sum" in which:
+        fig4 = plt.figure(figsize=(8, 6))
+        gs4 = GridSpec(2, 3, figure=fig4)
+        ax41 = fig4.add_subplot(gs4[0, 0])
+        ax42 = fig4.add_subplot(gs4[0, 1])
+        ax43 = fig4.add_subplot(gs4[0, 2])
+        ax44 = fig4.add_subplot(gs4[1, 0])
+        ax45 = fig4.add_subplot(gs4[1, 1])
+        ax46 = fig4.add_subplot(gs4[1, 2])
+
+        ax41.set_title("Q [m^2/s]")
+        ax41.set_ylim(0, 15)
+        ax41.set_xlim(-2.51, 6.01)
+        ax41.grid("both")
+        ax41.set_xticklabels([])
+        #
+        ax42.set_title("M[m^2/s]")
+        # ax42.set_ylim(0, 0.075)
+        ax42.set_xlim(-2.51, 6.01)
+        ax42.grid("both")
+        ax42.set_xticklabels([])
+        #
+        ax43.set_title("M/QP")
+        ax43.set_ylim(0, 5e-3)
+        ax43.set_xlim(-2.51, 6.01)
+        ax43.grid("both")
+        ax43.set_xticklabels([])
+        ax43.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+
+        ax44.set_title("total")
+        ax44.set_ylabel("Plume Buoyancy")
+        ax44.set_xlabel("AW Temperature")
+        ax44.set_ylim(-0.01, 0.61)
+        ax44.set_xlim(-2.51, 6.01)
+        ax44.grid("both")
+
+        ax45.set_title("Salinity")
+        ax45.set_xlabel("AW Temperature")
+        ax45.set_ylim(-0.01, 0.61)
+        ax45.set_xlim(-2.51, 6.01)
+        ax45.grid("both")
+
+        ax46.set_title("Temperature")
+        ax46.set_xlabel("AW Temperature")
+        ax46.set_ylim(-0.61, 0.01)
+        ax46.set_xlim(-2.51, 6.01)
+        ax46.grid("both")
 
     for vi in np.arange(0, np.shape(data)[0]):
         plume = diagnostics.plume(coords[vi], data[vi], ["flx"], sec=sec)
         x = np.squeeze(plume["d"] / 1000)
         d = plume["thick"]
-        taw = np.nanmax(data[vi]["tref"])
+        taw = data[vi]["tref"][-1]
         ice = coords[vi]["ice"]
         tref = data[vi]["tref"][-1]
         sref = data[vi]["sref"][-1]
 
-        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
+        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * 365 * 86400
         cmelt = np.nancumsum(melt)
 
-        color = colors(exp[vi] / np.max(exp))
-        line = lines[geo[vi]]
-        marker = markers[geo[vi]]
+        color, line, marker = identify(path[vi], tref)
 
         u_ice = plume["u_plu"][0, :]
         w_ice = plume["u_plu"][0, :]
@@ -567,188 +690,173 @@ def plot_plume(figname, path, sec=False):
 
         flx = plume["flx"]
 
-        print(np.shape(x))
-        print(np.shape(d_fil))
-        ax11.plot(x, d_fil, color=color)
-        # ax13.plot(
-        #    d, s_ice - 35, color=color, linestyle=line, alpha=0.1, label="_nolegend_"
-        # )
-        ax12.plot(
-            x,
-            si_fil - sref,
-            color=color,
-            linestyle=line,
-            alpha=0.7,
-        )
-        ax13.plot(
-            x,
-            ti_fil - tref,
-            color=color,
-            linestyle=line,
-            alpha=0.7,
-            label=path[vi],
-        )
-        ax14.plot(x, vel_fil, color=color, linestyle=line, alpha=0.7, label=path[vi])
-        ax14.plot(
-            x, vel_ice, color=color, linestyle=line, alpha=0.1, label="_nolegend_"
-        )
+        if "tsu" in which:
+            ax11.plot(x, d_fil, color=color)
+            ax12.plot(
+                x,
+                si_fil - sref,
+                color=color,
+                linestyle=line,
+                alpha=0.7,
+            )
+            ax13.plot(
+                x,
+                ti_fil - tref,
+                color=color,
+                linestyle=line,
+                alpha=0.7,
+                label=path[vi],
+            )
+            ax14.plot(
+                x, vel_fil, color=color, linestyle=line, alpha=0.7, label=path[vi]
+            )
+            # ax14.plot(
+            #     x, vel_ice, color=color, linestyle=line, alpha=0.1, label="_nolegend_"
+            # )
 
         # ------------Figure 2-------------
+        if "flux" in which:
+            ax21.plot(x, flx, color=color, linestyle=line, alpha=0.7, label=path[vi])
+            ax22.plot(
+                x,
+                np.nancumsum(melt),
+                color=color,
+                linestyle=line,
+                alpha=0.7,
+                label=path[vi],
+            )
 
-        ax21.plot(x, flx, color=color, linestyle=line, alpha=0.7, label=path[vi])
-        ax22.plot(x, np.nancumsum(melt), color=color, linestyle=line, alpha=0.7)
-        # ax23.plot(
-        #    d,
-        #    np.cumsum(-SHIflx[vi]["fwfx"] / 1000) / flx,
-        #    color=color,
-        #    linestyle=line,
-        #    alpha=0.7,
-        # )
-
-        ax24.plot(taw, np.nanmax(flx), marker, color=color)
-        ax25.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color, label=path[vi])
-        ax26.plot(taw, cmelt[np.nanargmax(flx)] / np.nanmax(flx), marker, color=color)
-
-        print(taw)
-        print(np.nanmax(flx))
-        print(cmelt[np.nanargmax(flx)])
-        print(cmelt[np.nanargmax(flx)] / np.nanmax(flx))
+            ax23.plot(taw, np.nanmax(flx), marker, color=color)
+            ax24.plot(
+                taw, cmelt[np.nanargmax(flx)], marker, color=color, label=path[vi]
+            )
+            ax25.plot(
+                taw, cmelt[np.nanargmax(flx)] / np.nanmax(flx), marker, color=color
+            )
 
         # ------------Figure 3-------------
+        if "buoy" in which:
+            if vi == 0:
+                tlabel = "Temp"
+                slabel = "Sal"
+                label = "Total"
+                ax31.plot(
+                    x, s_buo + 10, color="k", linestyle="-", alpha=0.7, label=label
+                )
+                ax31.plot(
+                    x, s_buo + 10, color="k", linestyle="--", alpha=0.7, label=tlabel
+                )
+                ax31.plot(
+                    x, s_buo + 10, color="k", linestyle=":", alpha=0.7, label=slabel
+                )
 
-        if vi == 0:
-            tlabel = "Temp"
-            slabel = "Sal"
-            label = "Total"
-            ax31.plot(x, s_buo + 10, color="k", linestyle="-", alpha=0.7, label=label)
-            ax31.plot(x, s_buo + 10, color="k", linestyle="--", alpha=0.7, label=tlabel)
-            ax31.plot(x, s_buo + 10, color="k", linestyle=":", alpha=0.7, label=slabel)
+            else:
+                tlabel = "_nolegend"
+                slabel = "_nolegend"
+                label = "_nolegend"
 
-        else:
-            tlabel = "_nolegend"
-            slabel = "_nolegend"
-            label = "_nolegend"
+            ax31.plot(x, s_buo + t_buo, color=color, linestyle=line, alpha=0.7)
+            ax31.plot(x, s_buo, color=color, linestyle=":", alpha=0.7)
+            ax31.plot(x, t_buo, color=color, linestyle="--", alpha=0.7)
+            ax32.plot(
+                tref,
+                np.nanmean(t_buo[0 : np.nanargmax(flx)] + s_buo[0 : np.nanargmax(flx)]),
+                marker,
+                color=color,
+            )
+            ax33.plot(
+                tref,
+                np.nanmean(s_buo[0 : np.nanargmax(flx)]),
+                marker,
+                color=color,
+            )
+            ax34.plot(
+                tref,
+                np.nanmean(t_buo[0 : np.nanargmax(flx)]),
+                marker,
+                color=color,
+                label=path[vi],
+            )
 
-        ax31.plot(
-            x, s_buo + t_buo, color=color, linestyle=line, alpha=0.7, label=path[vi]
+        # ------------Figure 4-------------
+        if "sum" in which:
+            ax41.plot(taw, np.nanmax(flx), marker, color=color)
+            ax42.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color)
+            ax43.plot(
+                taw, cmelt[np.nanargmax(flx)] / np.nanmax(flx), marker, color=color
+            )
+            ax44.plot(
+                tref,
+                np.nanmean(t_buo[0 : np.nanargmax(flx)] + s_buo[0 : np.nanargmax(flx)]),
+                marker,
+                color=color,
+            )
+            ax45.plot(
+                tref,
+                np.nanmean(s_buo[0 : np.nanargmax(flx)]),
+                marker,
+                color=color,
+            )
+            ax46.plot(
+                tref,
+                np.nanmean(t_buo[0 : np.nanargmax(flx)]),
+                marker,
+                color=color,
+            )
+
+        # print(taw)
+        # print(np.nanmax(flx))
+        # print(cmelt[np.nanargmax(flx)])
+        # print(cmelt[np.nanargmax(flx)] / np.nanmax(flx))
+
+        f = open("fitting_data_{}.csv".format(figname), "w")
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                taw,
+                np.nanmax(flx),
+                cmelt[np.nanargmax(flx)],
+                cmelt[np.nanargmax(flx)] / np.nanmax(flx),
+            ]
         )
-        ax31.plot(x, s_buo, color=color, linestyle=":", alpha=0.7)
-        ax31.plot(x, t_buo, color=color, linestyle="--", alpha=0.7)
-        ax32.plot(
-            tref,
-            np.nanmean(t_buo[0 : np.nanargmax(flx)] + s_buo[0 : np.nanargmax(flx)]),
-            marker,
-            color=color,
-        )
-        ax33.plot(tref, np.nanmean(s_buo[0 : np.nanargmax(flx)]), marker, color=color)
-        ax34.plot(tref, np.nanmean(t_buo[0 : np.nanargmax(flx)]), marker, color=color)
+        f.close()
+    if "tsu" in which:
+        fig1.tight_layout()
+        ax14.legend(loc="center right", ncol=1, bbox_to_anchor=(1.00, 1.5))
+        fig1.savefig("plots/tsu" + figname, facecolor="white")
 
-    ax11.set_ylabel("Plume \nthickness")
-    ax11.grid("both")
-    ax11.set_xlim(0, 20.5)
+    if "flux" in which:
+        fig2.tight_layout()
+        ax22.legend(loc="center right", ncol=1, bbox_to_anchor=(1.00, 1))
+        fig2.savefig("plots/flux" + figname, facecolor="white")
 
-    ax12.set_xticklabels([])
-    ax12.set_ylabel("$S_{BL}-S_{AW}$")
-    ax12.grid("both")
-    ax12.set_xlim(0, 20.5)
-    ax12.set_ylim(-0.21, 0.01)
-    ax12.ticklabel_format(axis="y", style="sci", scilimits=[-2, 2])
+    if "buoy" in which:
+        fig3.tight_layout()
+        ax34.legend(loc="lower center", ncol=3, bbox_to_anchor=(-0, 0))
+        fig3.savefig("plots/buoy" + figname, facecolor="white")
 
-    ax13.set_xticklabels([])
-    ax13.set_ylabel("$T_{BL}-T_{AW}$")
-    ax13.grid("both")
-    ax13.set_ylim(-1.21, 0.01)
-    ax13.set_xlim(0, 20.5)
-
-    ax14.set_ylabel("BL veloctiy")
-    ax14.set_xlabel("distance along Ice")
-    ax14.grid("both")
-    ax14.set_xlim(0, 20.5)
-
-    # ------------Figure 2-------------
-    ax21.set_xticklabels([])
-    ax21.set_ylabel("Plume Flux [m^2/s]")
-    ax21.grid("both")
-    ax21.set_xlim(0, 20.5)
-
-    ax22.set_ylabel("melt from ice")
-    ax22.set_xlabel("dist along ice")
-    ax22.set_xticklabels([])
-    ax22.grid("both")
-    ax22.set_xlim(0, 20.5)
-
-    # ax23.set_xlabel("dist along ice")
-    # ax23.set_ylabel("cum(melt)/flx")
-    # ax23.grid("both")
-    # ax23.set_xlim(0, 20.5)
-    # ax23.set_ylim(0, 0.001)
-    # ax23.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
-
-    ax24.set_ylabel("Plume Vol. Flux \n(QP) [m^2/s]")
-    ax24.set_xlabel("AW Temperature")
-    ax24.grid("both")
-
-    ax25.set_ylabel("Cummulative Melt \n(M)[m^2/s]")
-    ax25.set_xlabel("AW Temperature")
-    ax25.grid("both")
-
-    ax26.set_ylabel("sum(M)/max(QP)")
-    ax26.set_xlabel("AW Temperature")
-    ax26.grid("both")
-    ax26.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
-
-    ax31.set_xticklabels([])
-    ax31.set_ylabel("Plume Buoyancy\ntotal")
-    ax31.grid("both")
-    ax31.set_xlim(0, 20.5)
-    ax31.set_ylim(-0.25, 0.55)
-    ax31.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
-    ax31.legend()
-
-    ax32.set_ylabel("Plume Buoyancy\ntotal")
-    ax32.set_ylim(0.19, 0.51)
-    ax32.grid("both")
-
-    ax33.set_ylabel("Sal")
-    ax33.set_ylim(0.19, 0.51)
-    ax33.grid("both")
-
-    ax34.set_ylabel("Temp")
-    ax34.set_ylim(-0.32, 0)
-    ax34.grid("both")
-
-    fig1.tight_layout()
-    fig2.tight_layout()
-    fig3.tight_layout()
-
-    ax14.legend(loc="center right", ncol=1)  # , bbox_to_anchor=(-0.00, 0))
-    ax21.legend(loc="center right", ncol=1)  # , bbox_to_anchor=(-0.00, 0))
-    fig1.savefig("plots/tsu" + figname, facecolor="white")
-    fig2.savefig("plots/flux" + figname, facecolor="white")
-    fig3.savefig("plots/buoy" + figname, facecolor="white")
+    if "sum" in which:
+        fig4.tight_layout()
+        # ax46.legend(loc="lower center", ncol=3, bbox_to_anchor=(-0, 0))
+        fig4.savefig("plots/sum" + figname, facecolor="white")
 
 
 def plot_ekin(figname, path, flx=[], prx=[]):
 
     pri = np.zeros(np.shape(prx)[0]).astype("int")
-    lines, markers = load_lines()
-    colors = load_colors()
-    lines = np.array(lines)
-
-    exp, geo = get_expgeo(path)
 
     [fig, axs] = plt.subplots(3, 1, figsize=(8, 5))
 
     print("start plotting {} timeseries".format(np.shape(path)[0]))
     for vi in np.arange(0, np.shape(path)[0]):
-        print("plot {} of {}".format(vi, np.shape(path)[0]))
+        print("plot {} of {}".format(vi + 1, np.shape(path)[0]))
         data, coords, SHIflx, gammas = load_single(path[vi], "times")
 
         time = data["time"] / 86400
+        step = np.squeeze(np.arange(0, np.shape(time)[0]) + 1)
         upr = np.zeros([np.shape(data["u_all"])[0], coords["nz"]])
 
-        color = colors(exp[vi] / np.max(exp))
-        line = lines[geo[vi]]
+        color, line, marker = identify(path[vi], data["tref"][-1])
         u = data["u_all"]
         w = data["w_all"]
         ekin = np.nansum(u * u + w * w, axis=(1, 2))
@@ -766,23 +874,28 @@ def plot_ekin(figname, path, flx=[], prx=[]):
 
         motQ = np.array(motQ)
 
+        if len(path[vi]) < 12:
+            label = "Control"
+        else:
+            label = path[vi][12:]
+
         axs[0].plot(
-            time,
+            step,
             ekin,
             line,
             color=color,
-            label="{}".format(path[vi]),
+            label=label,
         )
 
         axs[1].plot(
-            time,
+            step,
             melt,
             line,
             color=color,
         )
 
         axs[2].plot(
-            time,
+            step,
             motQ,
             line,
             color=color,
