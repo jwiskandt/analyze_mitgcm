@@ -44,6 +44,8 @@ def load_all(path, which):
         with open(gammafile, "rb") as a_file:
             gammas[i] = pickle.load(a_file)
 
+    path = short_path(path)
+
 
 def load_single(path, which):
 
