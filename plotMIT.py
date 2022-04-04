@@ -13,128 +13,10 @@ import importlib
 from ordered_set import OrderedSet
 
 from . import loadMIT
+from . import toolsMIT as TM
 from . import diagnostics
 
 importlib.reload(diagnostics)
-
-
-def load_all(path, which):
-
-    global data, coords, SHIflx, gammas
-
-    print(path)
-    path = list(path)
-    data = np.zeros(np.shape(path))
-    coords = np.zeros(np.shape(path))
-    SHIflx = np.zeros(np.shape(path))
-    gammas = np.zeros(np.shape(path))
-    data = list(data)
-    coords = list(coords)
-    SHIflx = list(SHIflx)
-    gammas = list(gammas)
-    for i in np.arange(0, len(path)):
-        print("loading {}".format(path[i]))
-        varfile = "mydata/" + path[i] + "/var_{}.pkl".format(which)
-        coordsfile = "mydata/" + path[i] + "/coords.pkl"
-        SHIflxfile = "mydata/" + path[i] + "/SHIflx_{}.pkl".format(which)
-        gammafile = "mydata/" + path[i] + "/gamma_{}.pkl".format(which)
-        with open(varfile, "rb") as a_file:
-            data[i] = pickle.load(a_file)
-        with open(coordsfile, "rb") as a_file:
-            coords[i] = pickle.load(a_file)
-        with open(SHIflxfile, "rb") as a_file:
-            SHIflx[i] = pickle.load(a_file)
-        with open(gammafile, "rb") as a_file:
-            gammas[i] = pickle.load(a_file)
-
-
-def load_single(path, which):
-
-    print("loading {}".format(path))
-    varfile = "mydata/" + path + "/var_{}.pkl".format(which)
-    coordsfile = "mydata/" + path + "/coords.pkl"
-    SHIflxfile = "mydata/" + path + "/SHIflx_{}.pkl".format(which)
-    gammafile = "mydata/" + path + "/gamma_{}.pkl".format(which)
-    with open(varfile, "rb") as a_file:
-        data = pickle.load(a_file)
-    with open(coordsfile, "rb") as a_file:
-        coords = pickle.load(a_file)
-    with open(SHIflxfile, "rb") as a_file:
-        SHIflx = pickle.load(a_file)
-    with open(gammafile, "rb") as a_file:
-        gammas = pickle.load(a_file)
-
-    return data, coords, SHIflx, gammas
-
-
-def identify(path, tref):
-
-    lines = ["-", ":", "--", ":", "-."]
-    markers = ["o", "x", "v", "^", "<", ">", "d"]
-    colors = cm.get_cmap("cividis")
-    colors2 = cm.get_cmap("copper")
-
-    if "control" in path:
-        marker = markers[-1]
-        line = lines[-1]
-        color = "k"
-    elif "SGD" in path:
-        marker = markers[1]
-        color = colors((tref + 2.5) / 10)
-        line = lines[1]
-    elif "NU" in path:
-        marker = markers[2]
-        color = colors2((int(path[-1]) - 4) / 2)
-        line = lines[2]
-    else:
-        marker = markers[0]
-        color = colors((tref + 2.5) / 10)
-        line = lines[0]
-
-    return color, line, marker
-
-
-def init_uts(var):
-
-    u = np.zeros(
-        [
-            np.shape(var)[0],
-            np.shape(var[0]["t_all"])[1],
-            np.shape(var[0]["t_all"])[2],
-        ]
-    )
-    w = np.zeros(
-        [
-            np.shape(var)[0],
-            np.shape(var[0]["t_all"])[1],
-            np.shape(var[0]["t_all"])[2],
-        ]
-    )
-    t = np.zeros(
-        [
-            np.shape(var)[0],
-            np.shape(var[0]["t_all"])[1],
-            np.shape(var[0]["t_all"])[2],
-        ]
-    )
-    s = np.zeros(
-        [
-            np.shape(var)[0],
-            np.shape(var[0]["t_all"])[1],
-            np.shape(var[0]["t_all"])[2],
-        ]
-    )
-
-    return t, s, u, w
-
-
-def init_prof(coords, var, prx):
-
-    upr = np.zeros([np.shape(var)[0], np.shape(prx)[0], coords["nz"]])
-    spr = np.zeros([np.shape(var)[0], np.shape(prx)[0], coords["nz"]])
-    tpr = np.zeros([np.shape(var)[0], np.shape(prx)[0], coords["nz"]])
-
-    return upr, spr, tpr
 
 
 def plot_sec(figname, path, vi, prx):
@@ -268,8 +150,8 @@ def plot_sec(figname, path, vi, prx):
 
 def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
 
-    t, s, u, w = init_uts(data)
-    upr, spr, tpr = init_prof(coords[0], data, prx)
+    t, s, u, w = TM.init_uts(data)
+    upr, spr, tpr = TM.init_prof(coords[0], data, prx)
     dels = np.zeros(np.shape(upr))
 
     Q = np.zeros([np.shape(data)[0], np.shape(prx)[0], coords[0]["nz"]])
@@ -398,10 +280,9 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
         zmax = coords[vi]["z"][np.nanargmax(upr[vi, i, :])]
         tref = data[vi]["tref"]
 
-        color, line, marker = identify(path[vi], tref[-1])
+        color, line, marker = TM.identify(path[vi], tref[-1])
 
         soff = ((tref[-1] + 2.5) / 10) * ds * 0.9
-        print(soff)
 
         rpref = 999.8 * (1 + tAlpha * tref + sBeta * sref) - 1000
         n = 0
@@ -648,7 +529,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
         cmelt = np.nancumsum(melt)
 
-        color, line, marker = identify(path[vi], tref)
+        color, line, marker = TM.identify(path[vi], tref)
 
         u_ice = plume["u_plu"][0, :]
         w_ice = plume["u_plu"][0, :]
@@ -850,13 +731,13 @@ def plot_ekin(figname, path, flx=[], prx=[]):
     print("start plotting {} timeseries".format(np.shape(path)[0]))
     for vi in np.arange(0, np.shape(path)[0]):
         print("plot {} of {}".format(vi + 1, np.shape(path)[0]))
-        data, coords, SHIflx, gammas = load_single(path[vi], "times")
+        data, coords, SHIflx, gammas = TM.load_single(path[vi], "times")
 
         time = data["time"] / 86400
         step = np.squeeze(np.arange(0, np.shape(time)[0]) + 1)
         upr = np.zeros([np.shape(data["u_all"])[0], coords["nz"]])
 
-        color, line, marker = identify(path[vi], data["tref"][-1])
+        color, line, marker = TM.identify(path[vi], data["tref"][-1])
         u = data["u_all"]
         w = data["w_all"]
         ekin = np.nansum(u * u + w * w, axis=(1, 2))
@@ -925,9 +806,6 @@ def plot_gamma(figname, path, coords, var, gammas):
     lam1 = -5.75e-2
     lam2 = 9.01e-2
     lam3 = -7.61e-4
-    colors = load_colors()
-    lines, markers = load_lines()
-    exp, geo = get_expgeo(path)
 
     fig = plt.figure(figsize=(12, 10))
     ax1 = plt.subplot(2, 3, 1)
@@ -939,8 +817,7 @@ def plot_gamma(figname, path, coords, var, gammas):
     ax1 = axs[1].twiny()
     for vi in np.arange(0, np.shape(var)[0]):
 
-        color = colors(exp[vi] / np.max(exp))
-        line = lines[geo[vi]]
+        color, line, marker = TM.identify(path)
 
         ice1 = coords[vi]["ice"]
         ice = np.delete(ice1, ice1 > 0)
@@ -1010,9 +887,6 @@ def plot_gamma(figname, path, coords, var, gammas):
 
 
 def plot_forcing(figname, path, coords, var, SHIflx):
-    colors = load_colors()
-    lines, markers = load_lines()
-    exp, geo = get_expgeo(path)
 
     fig = plt.figure(figsize=(12, 10))
     ax1 = plt.subplot(2, 1, 1)
@@ -1021,8 +895,7 @@ def plot_forcing(figname, path, coords, var, SHIflx):
 
     for vi in np.arange(0, np.shape(var)[0]):
 
-        color = colors(exp[vi] / np.max(exp))
-        line = lines[geo[vi]]
+        color, line, marker = TM.identify(path)
 
         ice1 = coords[vi]["ice"]
         ice = np.delete(ice1, ice1 > 0)
