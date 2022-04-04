@@ -150,6 +150,8 @@ def plot_sec(figname, path, vi, prx):
 
 def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
 
+    data = TM.data
+    coords = TM.coords
     t, s, u, w = TM.init_uts(data)
     upr, spr, tpr = TM.init_prof(coords[0], data, prx)
     dels = np.zeros(np.shape(upr))
@@ -276,9 +278,9 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
         i = 0
         rpr = 999.8 * (1 + tAlpha * tpr[vi, i, :] + sBeta * spr[vi, i, :]) - 1000
         rmax = rpr[np.nanargmax(upr[vi, i, :])]
-        z = coords[vi]["z"]
-        zmax = coords[vi]["z"][np.nanargmax(upr[vi, i, :])]
-        tref = data[vi]["tref"]
+        z = TM.coords[vi]["z"]
+        zmax = TM.coords[vi]["z"][np.nanargmax(upr[vi, i, :])]
+        tref = TM.data[vi]["tref"]
 
         color, line, marker = TM.identify(path[vi], tref[-1])
 
@@ -367,6 +369,11 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
 
 def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
     importlib.reload(diagnostics)
+
+    coords = TM.coords
+    data = TM.data
+    SHIflx = TM.SHIflx
+
     lam1 = -5.75e-2
     lam2 = 9.01e-2
     lam3 = -7.61e-4
