@@ -67,11 +67,6 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
     u_all = []
     w_all = []
 
-    icej = np.zeros(coords["nx"]).astype("int")
-    for i in np.arange(0, coords["nx"]):
-        jj = np.nonzero(coords["z"] < coords["ice"][i])[0]
-        icej[i] = jj[0]
-
     # loop through data/time steps
     for n in np.arange(0, nt):
         time[n] = steps[n] * dt
