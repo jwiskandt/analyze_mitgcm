@@ -44,6 +44,8 @@ def short_path(path):
             path[i] = "control"
         elif "sgd" in path[i]:
             path[i] = path[i][16:] + "_SGD"
+        elif "100km" in path[i]:
+            path[i] = path[i][16:] + "_large"
         else:
             path[i] = path[i][12:]
 
@@ -120,6 +122,10 @@ def identify(path, tref):
         marker = markers[2]
         color = colors2((int(path[-1]) - 4) / 2)
         line = lines[2]
+    elif "large" in path:
+        marker = markers[3]
+        color = colors((tref + 2.5) / 10)
+        line = lines[3]
     else:
         marker = markers[0]
         color = colors((tref + 2.5) / 10)

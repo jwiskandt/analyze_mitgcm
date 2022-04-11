@@ -23,6 +23,9 @@ def plot_sec(figname, path, vi, prx):
     tAlpha = (-0.4e-4,)
     sBeta = (8.0e-4,)
     rnil = 999.8
+    data = TM.data
+    coords = TM.coords
+    SHIflx = TM.SHIflx
 
     (t, s, u, w) = loadMIT.ave_tsu(
         data[vi]["t_all"], data[vi]["s_all"], data[vi]["u_all"], data[vi]["w_all"]
@@ -54,13 +57,13 @@ def plot_sec(figname, path, vi, prx):
             if np.any(ind):
                 psi_r[ri, i] = np.nansum(np.flip(u[ind, i], axis=0), axis=0) * -dz
 
-    # tinit = np.squeeze(np.reshape(data[vi]["tinit"], np.shape(r)))
-    # sinit = np.squeeze(np.reshape(data[vi]["sinit"], np.shape(r)))
-    # rinit = rnil * (1 + tAlpha * tinit + sBeta * sinit) - 1000
-    # levels = np.linspace(-1, 1, 41)
-
     dep = coords[vi]["topo"]
-    icei = np.arange(0, np.shape(ice[ice < 0])[0] + 1)
+    for i in x:
+        print(i)
+
+    if len(dep) > len(x):
+        dep = dep[: len(x)]
+        ice = ice[: len(x)]
 
     [fig, axs] = plt.subplots(2, 1, figsize=(8, 8))
 
@@ -85,8 +88,8 @@ def plot_sec(figname, path, vi, prx):
         colors="white",
         alpha=0.5,
     )
-    axs[0].plot(x / 1000, dep / 1000, "k", linewidth=2)
-    axs[0].plot(x[icei] / 1000, ice[icei] / 1000, "k", linewidth=2)
+    # axs[0].plot(x / 1000, dep / 1000, "k", linewidth=2)
+    # axs[0].plot(x[icei] / 1000, ice[icei] / 1000, "k", linewidth=2)
     axs[0].set_title("Exp: {} - Day {}-{}".format(path[vi], time[0], time[-1]))
     axs[0].set_xlabel("Distance from grounding line [km]")
     axs[0].set_ylabel("depth in [km]")
@@ -530,6 +533,8 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         d = plume["thick"]
         taw = data[vi]["tref"][-1]
         ice = coords[vi]["ice"]
+        if len(ice) > len(x):
+            ice = ice[: len(x)]
         tref = data[vi]["tref"][-1]
         sref = data[vi]["sref"][-1]
 

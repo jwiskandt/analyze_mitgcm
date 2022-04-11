@@ -148,6 +148,8 @@ def plume(coords, var, ret, sec=False):
 
     x = coords["x"]
     dx = coords["dx"]
+    if len(ice) > len(x):
+        ice = ice[: len(x)]
 
     d = calc_dist_along(x, ice) + x[0]
 
