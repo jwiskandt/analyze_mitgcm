@@ -30,6 +30,7 @@ prx = [25e3]
 
 importlib.reload(plotMIT)
 toolsMIT.load_all(path, "final")
+path = toolsMIT.short_path(path)
 
 # %% plot sections
 

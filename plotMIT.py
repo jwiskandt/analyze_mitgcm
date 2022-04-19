@@ -697,11 +697,6 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
                 color=color,
             )
 
-        # print(taw)
-        # print(np.nanmax(flx))
-        # print(cmelt[np.nanargmax(flx)])
-        # print(cmelt[np.nanargmax(flx)] / np.nanmax(flx))
-
         f = open("fitting_data_{}.csv".format(figname), "w")
         writer = csv.writer(f)
         writer.writerow(
