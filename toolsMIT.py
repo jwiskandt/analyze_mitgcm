@@ -122,7 +122,7 @@ def identify(path, tref):
         marker = markers[2]
         color = colors2((int(path[-1]) - 4) / 2)
         line = lines[2]
-    elif "large" in path:
+    elif "100km" in path:
         marker = markers[3]
         color = colors((tref + 2.5) / 10)
         line = lines[3]
