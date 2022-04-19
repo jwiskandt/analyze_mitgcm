@@ -107,7 +107,6 @@ def identify(path, tref):
     markers = ["o", "x", "v", "^", "<", ">", "d"]
     colors = cm.get_cmap("cividis")
     colors2 = cm.get_cmap("copper")
-    print(path)
 
     if "control" in path:
         marker = markers[-1]
@@ -117,14 +116,13 @@ def identify(path, tref):
         marker = markers[1]
         color = colors((tref + 2.5) / 10)
         line = lines[1]
-        print("hier ist SGD")
     elif "NU" in path:
         marker = markers[2]
         color = colors2((int(path[-1]) - 4) / 2)
         line = lines[2]
     elif "100km" in path:
         marker = markers[3]
-        color = colors((tref + 2.5) / 10)
+        color = "k"
         line = lines[3]
     else:
         marker = markers[0]
