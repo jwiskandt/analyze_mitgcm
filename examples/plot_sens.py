@@ -25,7 +25,6 @@ path = [
     "100km_2lay_1SLOPE_AW60",
 ]
 # path = np.flip(path)
-path = toolsMIT.short_path(path)
 prx = [25e3]
 
 # %%
@@ -33,6 +32,7 @@ prx = [25e3]
 
 importlib.reload(plotMIT)
 toolsMIT.load_all(path, "final")
+path = toolsMIT.short_path(path)
 
 
 # %%
