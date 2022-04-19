@@ -82,6 +82,7 @@ def load_all(path, which):
             gammas[i] = pickle.load(a_file)
 
     path = short_path(path)
+    print(path)
 
 
 def load_single(path, which):
