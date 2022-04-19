@@ -45,7 +45,7 @@ def short_path(path):
         elif "sgd" in path[i]:
             path[i] = path[i][16:] + "_SGD"
         elif "100km" in path[i]:
-            path[i] = path[i][16:] + "_large"
+            path[i] = path[i][18:] + "_100km"
         else:
             path[i] = path[i][12:]
 
