@@ -81,9 +81,6 @@ def load_all(path, which):
         with open(gammafile, "rb") as a_file:
             gammas[i] = pickle.load(a_file)
 
-    path = short_path(path)
-    print(path)
-
 
 def load_single(path, which):
 
@@ -110,15 +107,17 @@ def identify(path, tref):
     markers = ["o", "x", "v", "^", "<", ">", "d"]
     colors = cm.get_cmap("cividis")
     colors2 = cm.get_cmap("copper")
+    print(path)
 
     if "control" in path:
         marker = markers[-1]
         line = lines[-1]
         color = "k"
-    elif "SGD" in path:
+    elif "_SGD" in path:
         marker = markers[1]
         color = colors((tref + 2.5) / 10)
         line = lines[1]
+        print("hier ist SGD")
     elif "NU" in path:
         marker = markers[2]
         color = colors2((int(path[-1]) - 4) / 2)
