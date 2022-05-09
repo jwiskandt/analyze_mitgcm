@@ -106,7 +106,7 @@ def identify(path, tref):
     lines = ["-", "--", ":", "-."]
     markers = ["o", "x", "v", "^", "<", ">", "d"]
     colors = cm.get_cmap("cividis")
-    colors2 = cm.get_cmap("summer")
+    colors2 = cm.get_cmap("bone")
 
     if "ryder" in path:
         marker = markers[1]
@@ -114,7 +114,7 @@ def identify(path, tref):
         color = "k"
     elif "sgd" in path:
         marker = markers[2]
-        color = colors2(int(path[3:6]) / 100)
+        color = colors2((int(path[3:6]) - 10) / 90)
         line = lines[0]
     elif "NU" in path:
         marker = markers[3]
