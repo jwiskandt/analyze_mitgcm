@@ -488,7 +488,6 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax46 = fig4.add_subplot(gs4[1, 2])
 
         ax41.set_title("Q [m^2/s]")
-        ax41.set_ylim(0, 15)
         ax41.set_xlim(-2.51, 6.01)
         ax41.grid("both")
         ax41.set_xticklabels([])
