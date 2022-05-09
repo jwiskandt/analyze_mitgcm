@@ -40,12 +40,12 @@ def load_path():
 
 def short_path(path):
     for i in np.arange(0, len(path)):
-        if len(path[i]) < 12:
-            path[i] = "control"
-        elif "sgd" in path[i]:
-            path[i] = path[i][16:] + "_SGD"
+        if "sgd" in path[i]:
+            path[i] = path[i][0:6] + path[i][18:]
         elif "100km" in path[i]:
             path[i] = path[i][18:] + "_100km"
+        elif "AW02" in path[i]:
+            path[i] = "ryder"
         else:
             path[i] = path[i][12:]
 
@@ -103,30 +103,30 @@ def load_single(path, which):
 
 def identify(path, tref):
 
-    lines = ["-", ":", "--", ":", "-."]
+    lines = ["-", "--", ":", "-."]
     markers = ["o", "x", "v", "^", "<", ">", "d"]
     colors = cm.get_cmap("cividis")
     colors2 = cm.get_cmap("copper")
 
-    if "control" in path:
-        marker = markers[-1]
-        line = lines[-1]
-        color = "k"
-    elif "_SGD" in path:
+    if "ryder" in path:
         marker = markers[1]
-        color = colors((tref + 2.5) / 10)
         line = lines[1]
-    elif "NU" in path:
-        marker = markers[2]
-        color = colors2((int(path[-1]) - 4) / 2)
-        line = lines[2]
-    elif "100km" in path:
-        marker = markers[3]
         color = "k"
+    elif "sgd" in path:
+        marker = markers[2]
+        color = colors2(int(path[3:6]) / 100)
+        line = lines[0]
+    elif "NU" in path:
+        marker = markers[3]
+        color = colors2((int(path[-1]) - 4) / 2)
         line = lines[3]
+    elif "100km" in path:
+        marker = markers[4]
+        color = "k"
+        line = lines[4]
     else:
         marker = markers[0]
-        color = colors((tref + 2.5) / 10)
+        color = colors((tref + 2.5) / 8.5)
         line = lines[0]
 
     return color, line, marker

@@ -138,7 +138,7 @@ def nanave2d(a, w, axis=0):
     return ave
 
 
-def plume(coords, var, ret, sec=False):
+def plume(coords, var, ret):
     """
     calculate Plume diagnostics
     """
@@ -156,8 +156,8 @@ def plume(coords, var, ret, sec=False):
     z = coords["z"]
     dz = -coords["dz"][0]
 
-    pthresh = 30 * dz
-    z_plu = np.arange(0, -dz * 30, -dz)
+    pthresh = 40 * dz
+    z_plu = np.arange(0, -dz * 41, -dz)
 
     t = np.nanmean(var["t_all"], axis=0)
     s = np.nanmean(var["s_all"], axis=0)
@@ -174,12 +174,12 @@ def plume(coords, var, ret, sec=False):
 
     u, w = loadMIT.uw_ontracer(u, w, coords)
 
-    wthresh = np.nanmean(w) + np.nanstd(w)
-    pmask[w < wthresh] = 0
-    t_plu = np.zeros([int(pthresh / dz), np.shape(d)[0]]) * np.nan
-    s_plu = np.zeros([int(pthresh / dz), np.shape(d)[0]]) * np.nan
-    u_plu = np.zeros([int(pthresh / dz), np.shape(d)[0]]) * np.nan
-    w_plu = np.zeros([int(pthresh / dz), np.shape(d)[0]]) * np.nan
+    wthresh = 0
+    pmask[u < wthresh] = 0
+    t_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    s_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    u_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    w_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
 
     for i in np.arange(np.shape(d)[0]):
         plu = np.where(pmask[:, i] != 0)
@@ -187,32 +187,6 @@ def plume(coords, var, ret, sec=False):
         s_plu[: np.shape(plu)[1], i] = s[plu, i]
         u_plu[: np.shape(plu)[1], i] = u[plu, i]
         w_plu[: np.shape(plu)[1], i] = w[plu, i]
-
-    if sec:
-        fig = plt.figure(figsize=(12, 15))
-        ax1 = plt.subplot(3, 1, 1)
-        ax2 = plt.subplot(3, 1, 2)
-        ax3 = plt.subplot(3, 1, 3)
-        axs = [ax1, ax2, ax3]
-
-        ax1.contourf(d, z_plu, t_plu)
-        ax2.contourf(d, z_plu, s_plu)
-        ax3.contourf(d, z_plu, u_plu)
-
-        ax1.set_xticklabels([])
-        ax1.set_ylabel(" plume T")
-        ax1.grid("both")
-        ax1.set_xlim(0, 20.5)
-
-        ax2.set_xticklabels([])
-        ax2.set_ylabel(" plume S")
-        ax2.grid("both")
-        ax2.set_xlim(0, 20.5)
-
-        ax3.set_ylabel(" plume U [m/s]")
-        ax3.grid("both")
-        ax3.set_xlim(0, 20.5)
-        plt.show()
 
     t = t * pmask
     s = s * pmask
@@ -237,6 +211,7 @@ def plume(coords, var, ret, sec=False):
         "s_plu": s_plu,
         "u_plu": u_plu,
         "w_plu": w_plu,
+        "z_plu": z_plu,
     }
     if "flx" in ret:
         ret_dic.update(
