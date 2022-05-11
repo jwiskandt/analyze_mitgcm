@@ -100,12 +100,12 @@ def plot_sec(figname, path, vi, prx):
         fwf = SHIflx[vi]["fwfx"]
 
         fwf[ice > 0] = np.nan
-        meltflux = np.nansum(fwf) / 1000 * dx * dy
+        meltflux = np.nansum(fwf) / 1000 * dx
         melt = np.nanmean(fwf) / 1000 * 86400 * 365
         axs[0].text(
             1,
             -0.1,
-            r"Melt flux: ${:7.3f} m^3/s$".format(meltflux),
+            r"Melt flux: ${:7.3f} m^2/s$".format(meltflux),
             fontsize=12,
         )
         axs[0].text(
@@ -317,6 +317,12 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
                 color=color,
             )
             axs[1].plot(
+                sref,
+                z / 1000,
+                "k:",
+                color=color,
+            )
+            axs[1].plot(
                 spr[vi, i, :],  # - sref,
                 z / 1000,
                 line,
@@ -505,20 +511,20 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax43.set_xticklabels([])
         ax43.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
 
-        ax44.set_title("total")
+        ax44.set_title("$\Delta b_{total}$")
         ax44.set_ylabel("Plume Buoyancy")
         ax44.set_xlabel("AW Temperature")
         ax44.set_ylim(-0.01, 0.61)
         ax44.set_xlim(-2.51, 6.01)
         ax44.grid("both")
 
-        ax45.set_title("Salinity")
+        ax45.set_title("$\Delta b_{Sal}$")
         ax45.set_xlabel("AW Temperature")
         ax45.set_ylim(-0.01, 0.61)
         ax45.set_xlim(-2.51, 6.01)
         ax45.grid("both")
 
-        ax46.set_title("Temperature")
+        ax46.set_title("$\Delta b_{Temp}$")
         ax46.set_xlabel("AW Temperature")
         ax46.set_ylim(-0.61, 0.01)
         ax46.set_xlim(-2.51, 6.01)
@@ -534,7 +540,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax51.set_ylabel("Plume \nthickness")
         ax51.grid("both")
         ax51.set_xlim(0, 15)
-        ax51.set_ylim(-2, 102)
+        ax51.set_ylim(-2, 132)
 
         ax52.set_xticklabels([])
         ax52.set_ylabel("$T_{BL}-T_{AW}$")
@@ -546,7 +552,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax53.set_xlabel("distance along Ice")
         ax53.grid("both")
         ax53.set_xlim(0, 15)
-        ax53.set_ylim(-0.01, 0.13)
+        ax53.set_ylim(-0.01, 0.17)
 
     if "select2" in which:
         fig6 = plt.figure(figsize=(6, 3))
