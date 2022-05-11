@@ -784,7 +784,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
             ax61.plot(taw, np.nanmax(flx), marker, color=color, label=path[vi])
             ax62.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color)
 
-        f = open("fitting_data_{}.csv".format(figname), "w")
+        f = open("fitting_data{}.csv".format(figname), "w")
         writer = csv.writer(f)
         writer.writerow(
             [
@@ -795,6 +795,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
             ]
         )
         f.close()
+
     if "tsu" in which:
         fig1.tight_layout()
         ax14.legend(loc="center right", ncol=1, bbox_to_anchor=(1.00, 1.5))
