@@ -384,8 +384,8 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
     lam1 = -5.75e-2
     lam2 = 9.01e-2
     lam3 = -7.61e-4
-    tAlpha = (-0.4e-4,)
-    sBeta = (8.0e-4,)
+    tAlpha = -0.4e-4
+    sBeta = 8.0e-4
     rnil = 999.8
     g = -9.81
     z = coords[0]["z"]
@@ -511,54 +511,48 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax43.set_xticklabels([])
         ax43.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
 
-        ax44.set_title("$\Delta b_{total}$")
+        ax44.set_title("$b_{total}$")
         ax44.set_ylabel("Plume Buoyancy")
         ax44.set_xlabel("AW Temperature")
         ax44.set_ylim(-0.01, 0.61)
         ax44.set_xlim(-2.51, 6.01)
         ax44.grid("both")
 
-        ax45.set_title("$\Delta b_{Sal}$")
+        ax45.set_title("$b_{Sal}$")
         ax45.set_xlabel("AW Temperature")
         ax45.set_ylim(-0.01, 0.61)
         ax45.set_xlim(-2.51, 6.01)
         ax45.grid("both")
 
-        ax46.set_title("$\Delta b_{Temp}$")
+        ax46.set_title("$b_{Temp}$")
         ax46.set_xlabel("AW Temperature")
         ax46.set_ylim(-0.61, 0.01)
         ax46.set_xlim(-2.51, 6.01)
         ax46.grid("both")
 
     if "select1" in which:
-        fig5 = plt.figure(figsize=(8, 6))
-        gs5 = GridSpec(3, 1, figure=fig5)
+        fig5 = plt.figure(figsize=(8, 4))
+        gs5 = GridSpec(2, 1, figure=fig5)
         ax51 = fig5.add_subplot(gs5[0, 0])
-        ax52 = fig5.add_subplot(gs5[2, 0])
-        ax53 = fig5.add_subplot(gs5[1, 0])
-
+        ax52 = fig5.add_subplot(gs5[1, 0])
+        ax51.set_xticklabels([])
         ax51.set_ylabel("Plume \nthickness")
         ax51.grid("both")
         ax51.set_xlim(0, 15)
         ax51.set_ylim(-2, 132)
 
         ax52.set_xticklabels([])
-        ax52.set_ylabel("$T_{BL}-T_{AW}$")
+        ax52.set_ylabel("BL veloctiy")
         ax52.grid("both")
-        ax52.set_ylim(-1.4, 0.01)
         ax52.set_xlim(0, 15)
-
-        ax53.set_ylabel("BL veloctiy")
-        ax53.set_xlabel("distance along Ice")
-        ax53.grid("both")
-        ax53.set_xlim(0, 15)
-        ax53.set_ylim(-0.01, 0.17)
+        ax52.set_ylim(-0.01, 0.17)
 
     if "select2" in which:
-        fig6 = plt.figure(figsize=(6, 3))
-        gs6 = GridSpec(1, 2, figure=fig6)
+        fig6 = plt.figure(figsize=(9, 3))
+        gs6 = GridSpec(1, 3, figure=fig6)
         ax61 = fig6.add_subplot(gs6[0, 0])
         ax62 = fig6.add_subplot(gs6[0, 1])
+        ax63 = fig6.add_subplot(gs6[0, 2])
 
         ax61.set_title("Q [m^2/s]")
         ax61.grid("both")
@@ -567,6 +561,28 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax62.set_title("M[m^2/s]")
         ax62.grid("both")
         ax62.set_xlabel("AW Temperature")
+
+        ax63.set_title("$TF = T_{BL} - T_{ice} [deg C]$")
+        ax63.grid("both")
+        ax63.set_xlabel("AW Temperature")
+
+    if "nondim" in which:
+        fig7 = plt.figure(figsize=(8, 4))
+        gs7 = GridSpec(2, 1, figure=fig7)
+        ax71 = fig7.add_subplot(gs7[0, 0])
+        ax72 = fig7.add_subplot(gs7[1, 0])
+
+        ax71.grid("both")
+        ax71.set_ylabel("Froude Number")
+        ax71.set_xticklabels([])
+        ax71.set_ylim(0, 2)
+        ax71.set_xlim(0, 15)
+
+        ax72.grid("both")
+        ax72.set_ylabel("Richardson Number")
+        ax72.set_xlabel("distance along Ice")
+        ax72.set_ylim(0, 2)
+        ax72.set_xlim(0, 15)
 
     for vi in np.arange(0, np.shape(data)[0]):
         plume = diagnostics.plume(coords[vi], data[vi], ["flx"])
@@ -605,6 +621,8 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
             ice = ice[: len(x)]
         tref = data[vi]["tref"][-1]
         sref = data[vi]["sref"][-1]
+        t0 = 1
+        s0 = 35
 
         melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
         cmelt = np.nancumsum(melt)
@@ -622,10 +640,10 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         vel_plu = np.sqrt(plume["u_plu"] ** 2 + plume["w_plu"] ** 2)
         vel_ave = np.nanmean(vel_plu, axis=0)
 
-        t_f = lam1 * s_ice + lam2 + ice * lam3
-
         nans, i = diagnostics.nan_helper(vel_ice)
         vel_ice[nans] = np.interp(i(nans), i(~nans), vel_ice[~nans])
+        nans, i = diagnostics.nan_helper(vel_ave)
+        vel_ave[nans] = np.interp(i(nans), i(~nans), vel_ave[~nans])
         nans, i = diagnostics.nan_helper(s_ice)
         s_ice[nans] = np.interp(i(nans), i(~nans), s_ice[~nans])
         nans, i = diagnostics.nan_helper(s_ave)
@@ -640,18 +658,34 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         sa_fil = uniform_filter1d(s_ave, size=20)
         si_fil = uniform_filter1d(s_ice, size=20)
         vel_fil = uniform_filter1d(vel_ice, size=20)
+        va_fil = uniform_filter1d(vel_ave, size=20)
         ti_fil = uniform_filter1d(t_ice, size=20)
         ta_fil = uniform_filter1d(t_ave, size=20)
         d_fil = uniform_filter1d(d, size=20)
 
-        s_buo = (sa_fil - sref) * sBeta * rnil * g
-        t_buo = (ta_fil - tref) * tAlpha * rnil * g
+        t_f = lam1 * si_fil + lam2 + ice * lam3
+        TF = ti_fil - t_f
+
+        rho1 = (1 + (sref - s0) * sBeta + (tref - t0) * tAlpha) * rnil
+        rho2 = (1 + (sa_fil - s0) * sBeta + (ta_fil - t0) * tAlpha) * rnil
+
+        rho2s = (1 + (sa_fil - s0) * sBeta) * rnil
+        rho2t = (1 + (ta_fil - t0) * tAlpha) * rnil
+
+        s_buo = (rho1 - rho2s) * g
+        t_buo = (rho1 - rho2t) * g
+
+        g_red = (rho1 - rho2) / rho1 * -g
+
         if vi == 0:
             s_b_ref = (sa_fil - sref) * 8e-4 * g
             t_b_ref = (ta_fil - tref) * -0.4e-4 * g
             t_force = t_ice - t_f
 
         flx = plume["flx"]
+
+        fr = va_fil / np.sqrt(g_red * d_fil)
+        ri = g_red * d_fil / va_fil**2
 
         if "tsu" in which:
             ax11.plot(x, d_fil, color=color)
@@ -770,21 +804,26 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         # ------------Figure 5-------------
         if "select1" in which:
             ax51.plot(x, d_fil, color=color, linestyle=line, label=path[vi])
-            ax52.plot(
-                x,
-                ti_fil - tref,
-                color=color,
-                linestyle=line,
-                label=path[vi],
-            )
-            ax53.plot(x, vel_fil, color=color, linestyle=line, label=path[vi])
+            ax52.plot(x, vel_fil, color=color, linestyle=line, label=path[vi])
 
         # ------------Figure 6-------------
         if "select2" in which:
             ax61.plot(taw, np.nanmax(flx), marker, color=color, label=path[vi])
             ax62.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color)
+            ax63.plot(taw, np.nanmean(TF[0 : np.nanargmax(flx)]), marker, color=color)
+            ax63.plot(
+                taw, np.nanmin(TF[0 : np.nanargmax(flx)]), marker="^", color=color
+            )
+            ax63.plot(
+                taw, np.nanmax(TF[0 : np.nanargmax(flx)]), marker="v", color=color
+            )
 
-        f = open("fitting_data{}.csv".format(figname), "w")
+        # ------------Figure 6-------------
+        if "nondim" in which:
+            ax71.plot(x, fr, color=color, linestyle=line, label=path[vi])
+            ax72.plot(x, ri, color=color, linestyle=line, label=path[vi])
+
+        f = open("fitting_data{}.csv".format(figname), "a")
         writer = csv.writer(f)
         writer.writerow(
             [
@@ -825,6 +864,11 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         fig6.tight_layout()
         # ax61.legend(loc="lower center", ncol=1, bbox_to_anchor=(0.5, 0))
         fig6.savefig("plots/Melt" + figname, facecolor="white", dpi=600)
+
+    if "nondim" in which:
+        fig7.tight_layout()
+        ax71.legend(loc="lower center", ncol=4)
+        fig7.savefig("plots/nondim" + figname, facecolor="white", dpi=600)
 
 
 def plot_ekin(figname, path, flx=[], prx=[]):
