@@ -679,8 +679,6 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         g_red = (rho1 - rho2) / rho1 * -g
 
         flx = plume["flx"]
-        print("rho1={}".format(rho1))
-        print("rho2s={}".format(rho2s[0]))
 
         fr = va_fil / np.sqrt(g_red * d_fil)
         ri = g_red * d_fil / va_fil**2
