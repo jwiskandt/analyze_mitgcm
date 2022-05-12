@@ -514,19 +514,19 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         ax44.set_title("$b_{total}$")
         ax44.set_ylabel("Plume Buoyancy")
         ax44.set_xlabel("AW Temperature")
-        ax44.set_ylim(-0.01, 0.61)
+        # ax44.set_ylim(-0.01, 0.61)
         ax44.set_xlim(-2.51, 6.01)
         ax44.grid("both")
 
         ax45.set_title("$b_{Sal}$")
         ax45.set_xlabel("AW Temperature")
-        ax45.set_ylim(-0.01, 0.61)
+        # ax45.set_ylim(-0.01, 0.61)
         ax45.set_xlim(-2.51, 6.01)
         ax45.grid("both")
 
         ax46.set_title("$b_{Temp}$")
         ax46.set_xlabel("AW Temperature")
-        ax46.set_ylim(-0.61, 0.01)
+        # ax46.set_ylim(-0.61, 0.01)
         ax46.set_xlim(-2.51, 6.01)
         ax46.grid("both")
 
@@ -676,11 +676,6 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         t_buo = (rho1 - rho2t) * g
 
         g_red = (rho1 - rho2) / rho1 * -g
-
-        if vi == 0:
-            s_b_ref = (sa_fil - sref) * 8e-4 * g
-            t_b_ref = (ta_fil - tref) * -0.4e-4 * g
-            t_force = t_ice - t_f
 
         flx = plume["flx"]
 
