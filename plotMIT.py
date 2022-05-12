@@ -669,15 +669,18 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
         rho1 = (1 + (sref - s0) * sBeta + (tref - t0) * tAlpha) * rnil
         rho2 = (1 + (sa_fil - s0) * sBeta + (ta_fil - t0) * tAlpha) * rnil
 
-        rho2s = (1 + (sa_fil - s0) * sBeta) * rnil
-        rho2t = (1 + (ta_fil - t0) * tAlpha) * rnil
+        rho2s = (1 + (tref - t0) * tAlpha + (sa_fil - s0) * sBeta) * rnil
+        rho2t = (1 + (ta_fil - t0) * tAlpha + (sref - s0) * sBeta) * rnil
 
-        s_buo = (rho1 - rho2s) * g
-        t_buo = (rho1 - rho2t) * g
+        s_buo = (rho2s - rho1) * g
+        t_buo = (rho2t - rho1) * g
+        buo = (rho2 - rho1) * g
 
         g_red = (rho1 - rho2) / rho1 * -g
 
         flx = plume["flx"]
+        print("rho1={}".format(rho1))
+        print("rho2s={}".format(rho2s[0]))
 
         fr = va_fil / np.sqrt(g_red * d_fil)
         ri = g_red * d_fil / va_fil**2
@@ -779,7 +782,7 @@ def plot_plume(figname, path, sec=False, which=["tsu", "flux", "buoy", "sum"]):
             )
             ax44.plot(
                 tref,
-                np.nanmean(t_buo[0 : np.nanargmax(flx)] + s_buo[0 : np.nanargmax(flx)]),
+                np.nanmean(buo[0 : np.nanargmax(flx)]),
                 marker,
                 color=color,
             )
