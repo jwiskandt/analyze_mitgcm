@@ -1,3 +1,4 @@
+from telnetlib import SB
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import interpolate
@@ -75,14 +76,14 @@ def ot_time_Q(coords, upr, Qout=False):
         return mot
 
 
-def gadeline(tpr, spr, z=0):
+def gadeline(tice=-2, tam=0, sam=35, z=0):
 
     g = 9.81
     rhonil = 9.998e2
     a0 = -0.0575
     c0 = 0.0901
     b = -7.61e-8
-    tfr1 = a0 * spr
+    tfr1 = a0 * 0
     tfr2 = b * rhonil * g * z
     tfr = tfr1 + c0 + tfr2
 
@@ -90,16 +91,21 @@ def gadeline(tpr, spr, z=0):
     L = 334e3
     cp = 3.994e3
     ci = 2e3
-    Sf = np.nanmax(spr)
-    G = Sf ** (-1) * (L / cp + ci / cp * (np.nanmean(tfr - 20)))
-    T0, S0, SR = (
-        np.nanmax(tpr),
-        Sf,
-        np.array(1),
-    )
-    SG = [S0, S0 - SR]
-    TG = G * (SG - S0) + T0
-    return TG, SG
+    gam = ci / cp
+
+    T0 = tice  # ice
+    T1 = tfr
+    # Solve for T2
+    T3 = tam
+
+    TF = T3 - T1
+    # S1 no exist
+    S2 = sam - 2
+    S3 = sam
+    dTdS = S3 ** (-1) * (TF + L / cp + gam * (T1 - T0))
+
+    T2 = T3 - dTdS * (S3 - S2)
+    return [S2, S3], [T2, T3]
 
 
 def calc_dist_along(a, b, c=None):
@@ -223,3 +229,19 @@ def plume(coords, var, ret):
         )
 
     return ret_dic
+
+
+def rho_cont(T, S):
+    t = np.linspace(min(T), max(T), 99)
+    s = np.linspace(min(S), max(S), 100)
+
+    tm, sm = np.meshgrid(t, s)
+
+    t0 = 1
+    s0 = 35
+    tAlpha = -0.4e-4
+    sBeta = 8.0e-4
+    rnil = 999.8
+
+    rm = rnil * (1 + tAlpha * (tm - t0) + sBeta * (sm - s0))
+    return tm, sm, rm
