@@ -30,11 +30,12 @@ def timeseries(path, start, stop, step, which=[], freq=360):
 
 
 def timeave(path, start, stop, step, which=[], freq=[]):
+    range = stop - start
     for i in np.arange(0, np.shape(path)[0]):
-        varfile = "mydata/" + path[i] + "/var_final.pkl"
-        coordsfile = "mydata/" + path[i] + "/coords.pkl"
-        SHIflxfile = "mydata/" + path[i] + "/SHIflx_final.pkl"
-        gammafile = "mydata/" + path[i] + "/gamma_final.pkl"
+        varfile = "mydata/" + path[i] + range + "/var_final.pkl"
+        coordsfile = "mydata/" + path[i] + range + "/coords.pkl"
+        SHIflxfile = "mydata/" + path[i] + range + "/SHIflx_final.pkl"
+        gammafile = "mydata/" + path[i] + range + "/gamma_final.pkl"
         coords = loadMIT.load_coord(path[i])
         with open(coordsfile, "wb") as a_file:
             pickle.dump(coords, a_file)
