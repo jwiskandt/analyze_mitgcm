@@ -1,3 +1,4 @@
+from gettext import dgettext
 from turtle import width
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,139 +22,246 @@ from . import diagnostics
 importlib.reload(diagnostics)
 
 
-def plot_sec(figname, path, vi):
+def plot_sec(path, vi, prx=[25e3], which=["ave"]):
     tAlpha = (-0.4e-4,)
     sBeta = (8.0e-4,)
     rnil = 999.8
     data = TM.data
+    sref = data[vi]["sref"]
+    tref = data[vi]["tref"]
+    saw = sref[-1]
+    taw = tref[-1]
     coords = TM.coords
     SHIflx = TM.SHIflx
-
-    (t, s, u, w) = loadMIT.ave_tsu(
-        data[vi]["t_all"], data[vi]["s_all"], data[vi]["u_all"], data[vi]["w_all"]
-    )
     x = coords[vi]["x"]
-    prx = x[np.nanargmin(SHIflx[vi]["fwfx"])]
-    pri = np.where(x == prx)[0]
+    pri = np.where(x > prx)[0][0]
     z = coords[vi]["z"]
     ice = coords[vi]["ice"]
+    hfac = coords[vi]["hfac"]
     dx = coords[vi]["dx"][0]
     dy = coords[vi]["dx"][0]
-    dz = coords[vi]["dz"][0]
+    dz = -coords[vi]["dz"][0]
     time = data[vi]["time"] / 86400
-
-    # nan above the ice
-    for i in np.arange(1, coords[vi]["nx"]):
-        t[z > ice[i], i] = float("nan")
-        s[z > ice[i], i] = float("nan")
-        u[z > ice[i], i] = float("nan")
-        w[z > ice[i], i] = float("nan")
-
-    psi = np.flipud(np.nancumsum(np.flip(u, axis=0) * dz, axis=0))
-    r = rnil * (1 + tAlpha * t + sBeta * s) - 1000
-
-    rgrid = np.linspace(27.7, np.nanmax(r), 101)
-    sgrid = np.linspace(34, np.nanmax(s), 101)
-    psi_r = np.zeros([np.shape(rgrid)[0], np.shape(x)[0]])
-    psi_s = np.zeros([np.shape(sgrid)[0], np.shape(x)[0]])
-
-    for i in np.arange(0, len(x)):
-        for ri in np.arange(0, len(rgrid)):
-            ind = np.nonzero(r[:, i] > rgrid[ri])[0]
-            sind = np.nonzero(s[:, i] > sgrid[ri])[0]
-            if np.any(ind):
-                psi_r[ri, i] = np.nansum(np.flip(u[ind, i], axis=0), axis=0) * -dz
-                psi_s[ri, i] = np.nansum(np.flip(u[sind, i], axis=0), axis=0) * -dz
-
+    if np.nanmax(time) > 100:
+        time = time / 2
     dep = coords[vi]["topo"]
 
     if len(dep) > len(x):
         dep = dep[: len(x)]
         ice = ice[: len(x)]
 
-    [fig, axs] = plt.subplots(2, 1, figsize=(8, 8))
+    if "ave" in which:
+        figname = "_sec.png"
 
-    axs[0].plot(np.ones(coords[vi]["nz"]) * prx / 1000, z / 1000, "--k")
+        (t, s, u, w) = loadMIT.ave_tsu(
+            data[vi]["t_all"], data[vi]["s_all"], data[vi]["u_all"], data[vi]["w_all"]
+        )
 
-    cf0 = axs[0].contourf(
-        x / 1000,
-        z / 1000,
-        s,
-        np.linspace(34.9, 35, 21),
-        cmap="viridis_r",
-        extend="both",
-    )
+        # nan above the ice
+        for i in np.arange(1, coords[vi]["nx"]):
+            t[z > ice[i], i] = float("nan")
+            s[z > ice[i], i] = float("nan")
+            u[z > ice[i], i] = float("nan")
+            w[z > ice[i], i] = float("nan")
 
-    axs[0].contour(
-        x / 1000,
-        z / 1000,
-        psi,
-        np.linspace(1, 10, 10),
-        colors="white",
-        alpha=0.2,
-        linewidth=0.5,
-    )
-    axs[0].plot(x / 1000, dep / 1000, "k", linewidth=2)
-    axs[0].plot(x / 1000, ice / 1000, "k", linewidth=2)
-    axs[0].set_title("Exp: {} - Day {}-{}".format(path[vi], time[0], time[-1]))
-    axs[0].set_xlabel("Distance from grounding line [km]")
-    axs[0].set_ylabel("depth in [km]")
+        psi = np.flipud(np.nancumsum(np.flip(u, axis=0) * dz, axis=0))
+        r = rnil * (1 + tAlpha * t + sBeta * s) - 1000
 
-    fwf = SHIflx[vi]["fwfx"]
-    fwf[ice > 0] = np.nan
-    meltflux = np.nansum(fwf) / 1000 * dx
-    melt = np.nanmean(fwf) / 1000 * 86400 * 365
-    # axs[0].text(
-    #     1,
-    #     -0.1,
-    #     r"Melt flux: ${:7.3f} m^2/s$".format(meltflux),
-    #     fontsize=12,
-    # )
-    axs[0].text(
-        1,
-        -0.1,
-        r"Ave melt rate: ${:5.1f} m/yr$".format(melt),
-        fontsize=12,
-    )
-    ax02 = axs[0].twinx()
-    ax02.plot(x / 1000, fwf, color="green")
-    ax02.set_ylabel("fresh water flux")
-    ax02.tick_params(axis="y", colors="green")
-    ax02.spines["right"].set_color("green")
-    ax02.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
-    ax02.set_xlim(0, 30)
-    ax02.set_ylim(2 * np.nanmin(fwf), 0)
-    cbar1 = fig.colorbar(
-        cf0, ax=ax02, orientation="horizontal", fraction=0.08
-    )  # , anchor=(1.0, 0.1)
+        rgrid = np.linspace(np.nanmin(r), np.nanmax(r), 101)
+        sgrid = np.linspace(34.9, np.nanmax(s), 21)
+        psi_r = np.zeros([np.shape(rgrid)[0], np.shape(x)[0]])
+        psi_s = np.zeros([np.shape(sgrid)[0], np.shape(x)[0]])
 
-    cf1 = axs[1].contourf(
-        x / 1000,
-        sgrid,
-        -psi_s,
-        np.linspace(0, 10, 11),
-        cmap="Reds",
-        extend="both",
-    )
-    axs[1].set_xlabel("Distance from grounding line [km]")
-    axs[1].set_ylabel("Sigma")
-    axs[1].set_xlim([0, 30])
-    axs[1].set_ylim([34.9, 35])
-    axs[1].invert_yaxis()
-    cbar2 = fig.colorbar(cf1, ax=axs[1], orientation="horizontal", fraction=0.08)
+        for i in np.arange(0, len(x)):
+            for ri in np.arange(0, len(rgrid)):
+                ind = np.nonzero(r[:, i] > rgrid[ri])[0]
+                if np.any(ind):
+                    psi_r[ri, i] = np.nansum(np.flip(u[ind, i], axis=0), axis=0) * -dz
+            for si in np.arange(0, len(sgrid) - 1):
+                sind = np.nonzero((s[:, i] >= sgrid[si]) & (s[:, i] < sgrid[si + 1]))[0]
+                if np.any(sind):
+                    psi_s[si, i] = np.nansum(np.flip(u[sind, i], axis=0), axis=0) * -dz
 
-    cbar1.set_label("Salinity")
-    cbar2.set_label("Transport Stream function")
-    plt.tight_layout()
-    fig.savefig("plots/" + path[vi] + figname, facecolor="white", dpi=600)
-    plt.show()
-    plt.close("all")
+        print(np.nanmax(psi_s))
+
+        [fig, axs] = plt.subplots(2, 1, figsize=(8, 8))
+
+        axs[0].plot(np.ones(coords[vi]["nz"]) * prx / 1000, z / 1000, "--k")
+
+        cf0 = axs[0].contourf(
+            x / 1000,
+            z / 1000,
+            s,
+            np.linspace(34.9, 35, 21),
+            cmap="viridis_r",
+            extend="both",
+        )
+
+        axs[0].contour(
+            x / 1000,
+            z / 1000,
+            psi,
+            np.linspace(-10, 10, 21),
+            colors="white",
+            alpha=0.2,
+            linewidth=0.5,
+        )
+        axs[0].plot(x / 1000, dep / 1000, "k", linewidth=2)
+        axs[0].plot(x / 1000, ice / 1000, "k", linewidth=2)
+        axs[0].set_title("Exp: {} - ave. Day {}-{}".format(path[vi], time[0], time[-1]))
+        axs[0].set_xlabel("Distance from grounding line [km]")
+        axs[0].set_ylabel("depth in [km]")
+
+        fwf = SHIflx[vi]["fwfx"]
+        fwf[ice > 0] = np.nan
+        meltflux = np.nansum(fwf) / 1000 * dx
+        melt = np.nanmean(fwf) / 1000 * 86400 * 365
+        # axs[0].text(
+        #     1,
+        #     -0.1,
+        #     r"Melt flux: ${:7.3f} m^2/s$".format(meltflux),
+        #     fontsize=12,
+        # )
+        axs[0].text(
+            1,
+            -0.1,
+            r"Ave melt rate: ${:5.1f} m/yr$".format(melt),
+            fontsize=12,
+        )
+        ax02 = axs[0].twinx()
+        ax02.plot(x / 1000, fwf, color="green")
+        ax02.set_ylabel("fresh water flux")
+        ax02.tick_params(axis="y", colors="green")
+        ax02.spines["right"].set_color("green")
+        ax02.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+        ax02.set_xlim(0, 30)
+        ax02.set_ylim(2 * np.nanmin(fwf), 0)
+        cbar1 = fig.colorbar(
+            cf0, ax=ax02, orientation="horizontal", fraction=0.08
+        )  # , anchor=(1.0, 0.1)
+
+        cf1 = axs[1].contourf(
+            x / 1000,
+            sgrid,
+            np.nancumsum(psi_s, axis=0),
+            np.linspace(-10, 10, 21),
+            cmap="RdBu_r",
+            extend="both",
+        )
+        axs[1].set_xlabel("Distance from grounding line [km]")
+        axs[1].set_ylabel("Sigma")
+        axs[1].set_xlim([0, 30])
+        # axs[1].set_ylim([34.9, 35])
+        axs[1].invert_yaxis()
+        cbar2 = fig.colorbar(cf1, ax=axs[1], orientation="horizontal", fraction=0.08)
+
+        cbar1.set_label("Salinity")
+        cbar2.set_label("Transport Stream function")
+        plt.tight_layout()
+        fig.savefig("plots/" + path[vi] + figname, facecolor="white", dpi=600)
+        plt.show()
+        plt.close("all")
+
+    if "delta" in which:
+        figname = "_sec_del.png"
+        dels = data[vi]["s_all"][-1, :, :] - data[vi]["s_all"][0, :, :]
+        delt = data[vi]["t_all"][-1, :, :] - data[vi]["t_all"][0, :, :]
+
+        idels = (
+            np.nansum(dels[:, 0:pri] * hfac[:, 0:pri] * dx * dz)
+            / (time[-1] - time[0] + 1)
+            / 86400
+            / saw
+        )
+
+        fig1 = plt.figure(figsize=(8, 8))
+        gs1 = GridSpec(2, 1, figure=fig1)
+        ax11 = fig1.add_subplot(gs1[0, 0])
+        ax21 = fig1.add_subplot(gs1[1, 0])
+
+        cf1 = ax11.contourf(
+            x / 1000,
+            z / 1000,
+            dels,
+            np.linspace(-0.02, 0.02, 21),
+            cmap="RdBu_r",
+            extend="both",
+        )
+        ax11.plot(x / 1000, dep / 1000, "k", linewidth=2)
+        ax11.plot(x / 1000, ice / 1000, "k", linewidth=2)
+
+        cbar1 = fig1.colorbar(cf1, ax=ax11, orientation="horizontal", fraction=0.08)
+        cbar1.set_label("Temp diff")
+        ax11.set_title("Exp: {} - diff. Day {}-{}".format(path[vi], time[-1], time[0]))
+
+        cf2 = ax21.contourf(
+            x / 1000,
+            z / 1000,
+            delt,
+            np.linspace(-0.3, 0.3, 21),
+            cmap="RdBu_r",
+            extend="both",
+        )
+        ax21.text(1, -0.1, "Integrated dS/dt = {}".format(idels))
+        ax21.plot(x / 1000, dep / 1000, "k", linewidth=2)
+        ax21.plot(x / 1000, ice / 1000, "k", linewidth=2)
+
+        cbar2 = fig1.colorbar(cf2, ax=ax21, orientation="horizontal", fraction=0.08)
+        cbar2.set_label("Sal diff")
+
+        fig1.savefig("plots/" + path + figname, facecolor="white", dpi=600)
+
+    if "salflx" in which:
+        figname = "_sec_sflx.png"
+
+        s = np.nanmean(data[vi]["s_all"], axis=0)
+        t = np.nanmean(data[vi]["t_all"], axis=0)
+        u = np.nanmean(data[vi]["u_all"], axis=0)
+        dels = np.zeros(np.shape(s))
+        delt = np.zeros(np.shape(s))
+
+        for i in np.arange(0, len(x)):
+            dels[:, i] = s[:, i] - sref
+            delt[:, i] = t[:, i] - tref
+
+        sflx = np.flipud(np.nancumsum(np.flipud(u * s / saw), axis=0)) * dz
+        tflx = np.flipud(np.nancumsum(np.flipud(u * t / taw), axis=0)) * dz
+
+        for i in np.arange(1, coords[vi]["nx"]):
+            sflx[z > ice[i], i] = float("nan")
+            tflx[z > ice[i], i] = float("nan")
+
+        fig1 = plt.figure(figsize=(8, 8))
+        gs1 = GridSpec(2, 1, figure=fig1)
+        ax11 = fig1.add_subplot(gs1[0, 0])
+        ax21 = fig1.add_subplot(gs1[1, 0])
+
+        cf1 = ax11.contour(x / 1000, z / 1000, sflx, [-0.05], colors="k")
+        # ax11.plot(x / 1000, dep / 1000, "k", linewidth=2)
+        # ax11.plot(x / 1000, ice / 1000, "k", linewidth=2)
+
+        ax11.set_title(
+            "Exp: {} - Sal transport ave Day {}-{}".format(path[vi], time[0], time[-1])
+        )
+        ax11.set_xlim([0, 30])
+
+        cf2 = ax21.contour(x / 1000, z / 1000, tflx, np.arange(-10, 10, 2), colors="k")
+        ax21.plot(x / 1000, dep / 1000, "k", linewidth=2)
+        ax21.plot(x / 1000, ice / 1000, "k", linewidth=2)
+
+        ax21.set_title(
+            "Exp: {} - Temp transport ave Day {}-{}".format(path[vi], time[0], time[-1])
+        )
+        ax21.set_xlim([0, 30])
+
+        fig1.savefig("plots/" + path[vi] + figname, facecolor="white", dpi=600)
 
 
-def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
+def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
 
     data = TM.data
     coords = TM.coords
+    dx = coords[0]["dx"][0]
     t, s, u, w = TM.init_uts(data)
     upr, spr, tpr = TM.init_prof(coords[0], data, prx)
     dels = np.zeros(np.shape(upr))
@@ -163,10 +271,31 @@ def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
     maxi = np.zeros([np.shape(data)[0], np.shape(prx)[0]])
     x = coords[0]["x"]
     sref = data[0]["sref"]
+    saw = sref[-1]
     dz = -coords[0]["dz"][0]
     dy = coords[0]["dx"][0]
+    hfac = coords[0]["hfac"]
+    hfacx = np.zeros(len(coords[0]["ice"]))
+    have = np.nanmean(hfac, axis=0)
+    for i in np.arange(0, len(have)):
+        ind = np.where((hfac[:, i] > 0) & (hfac[:, i] < 1))[0]
+        if len(ind) < 1:
+            hfacx[i] = np.max(hfac[:, i])
+        else:
+            hfacx[i] = hfac[ind, i]
+
+    sflx = np.zeros(np.shape(data)[0])
+    melt = np.zeros(np.shape(data)[0])
+    taw = np.zeros(np.shape(data)[0])
+    idels = np.zeros(np.shape(data)[0])
 
     for vi in np.arange(0, np.shape(data)[0]):
+        time = data[vi]["time"]
+        if time[-1] / 86400 > 100:
+            time = time / 2
+
+        print(time[-1])
+
         t[vi, :, :], s[vi, :, :], u[vi, :, :], w[vi, :, :] = loadMIT.ave_tsu(
             data[vi]["t_all"], data[vi]["s_all"], data[vi]["u_all"], data[vi]["w_all"]
         )
@@ -174,17 +303,26 @@ def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
         s = np.array(s)
         u = np.array(u)
 
+        dels = data[vi]["s_all"][-1, :, :] - data[vi]["s_all"][0, :, :]
+
+        melt[vi] = np.nansum(np.abs(TM.SHIflx[vi]["fwfx"] * hfacx)) / 1000 * dx
+
         for i in np.arange(0, np.shape(prx)[0]):
             pri = np.min(np.where(coords[vi]["x"] >= prx[i])[0])
             upr[vi, i, :] = u[vi, :, pri]
             tpr[vi, i, :] = t[vi, :, pri]
             spr[vi, i, :] = s[vi, :, pri]
-            dels[vi, i, :] = spr[vi, i, :] - sref
             cond = np.isnan(upr[vi, i, :]).all()
             maxi[vi, i] = np.nanargmax(upr[vi, i, :]) if not cond else np.nan
             mot[vi, i], Q[vi, i, :] = diagnostics.ot_time_Q(
                 coords[vi], upr[vi, i], Qout=True
             )
+
+        idels[vi] = (
+            np.nansum(dels[:, 0:pri] * hfac[:, 0:pri] * dx * dz)
+            / (time[-1] - time[0])
+            / saw
+        )
 
     ds = 0.01
     s = np.arange(34.7, 35 + ds, ds)
@@ -197,7 +335,9 @@ def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
     #     * 24
     #     * 365
     # )
-    sflx = np.nansum(dels * upr, axis=2) / np.max(sref) * dz * dy
+    sflx = np.squeeze(np.nansum(spr * upr, axis=2) / saw * dz)
+    tflx = np.squeeze(np.nansum(tpr * upr, axis=2) / taw * dz)
+
     tAlpha = (-0.4e-4,)
     sBeta = (8.0e-4,)
     mot = np.array(mot)
@@ -240,41 +380,13 @@ def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
 
     axs[4].grid("both")
     # axs[4].set_ylim(-1.050, 0.050)
-    axs[4].set_ylabel("integrated hor. fresh water transport")
+    axs[4].set_ylabel("ransport [m^2/s]")
     axs[4].set_xlabel("$T_{AW}$")
 
     axs[5].grid("both")
     axs[5].set_ylabel("Volume transport [$m^2/s$]")
     axs[5].set_xlabel("Salinity")
-    axs[5].set_xticks(s[::2])
-    axs[5].set_xlim(34.87, 35.01)
-
-    # sam, ctm = np.meshgrid(
-    #     np.arange(33.9, 35.1, 0.05),
-    #     np.arange(-1.81, 5.5, 0.01),
-    # )
-    # dens = gsw.density.sigma0(sam, ctm)
-    # densl = 999.8 * (1 + tAlpha * ctm + sBeta * sam) - 1000
-    #
-    # cf1 = axs[3].contour(
-    #     sam,
-    #     ctm,
-    #     dens,
-    #     (np.linspace(27, 28, 11)),
-    #     colors="k",
-    #     alpha=0.3,
-    # )
-    # cf2 = axs[3].contour(
-    #     sam,
-    #     ctm,
-    #     densl,
-    #     (np.linspace(27, 28, 11)),
-    #     colors="k",
-    #     alpha=0.6,
-    #     linestyle="dashed",
-    # )
-    # axs[3].clabel(cf1)
-    # axs[3].clabel(cf2)
+    axs[5].set_xlim(34.8, 35.0)
 
     for vi in np.arange(0, np.shape(data)[0]):
         i = 0
@@ -283,6 +395,7 @@ def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
         z = TM.coords[vi]["z"]
         zmax = TM.coords[vi]["z"][np.nanargmax(upr[vi, i, :])]
         tref = TM.data[vi]["tref"]
+        taw[vi] = tref[-1]
 
         color, line, marker = TM.identify(path[vi], tref[-1])
 
@@ -355,19 +468,18 @@ def plot_prof(fig_name, path, prx=[20e3], Gade=False, SalT=True):
                 line,
                 color=color,
             )
-            axs[4].plot(
-                tref[-1],
-                -sflx[vi, i],
-                marker,
-                color=color,
-            )
-            axs[5].bar(s + soff, strans[vi, :], color=color, width=0.0007)
-        # axs[5].plot(
-        #     spr[vi, i, :],
-        #     upr[vi, i, :],
-        #     line,
-        #     color=color,
-        # )
+            # axs[4].plot(
+            #    tref[-1],
+            #    -sflx[vi, i],
+            #    marker,
+            #    color=color,
+            # )
+            axs[5].plot(spr[vi, 0, :], upr[vi, 0, :], color=color)
+
+    axs[4].plot(taw, melt, label="melt")
+    axs[4].plot(taw, -sflx, label="hor flux at XXkm")
+    axs[4].plot(taw, idels, label="d/dt fresh water content")
+    axs[4].legend()
 
     plt.tight_layout()
     axs[1].legend(loc="lower center", bbox_to_anchor=(0.1, 0.0), ncol=2)
@@ -486,20 +598,20 @@ def plot_plume(figname, path, sec=False, which=[], prx=25e3):
         ax45 = fig4.add_subplot(gs4[1, 1])
         ax46 = fig4.add_subplot(gs4[1, 2])
 
-        ax41.set_title("Q [m^2/yr]")
+        ax41.set_title("Q [m^2/s]")
         ax41.set_xlim(-2.51, 6.01)
         ax41.grid("both")
         ax41.set_xticklabels([])
         ax41.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
         #
-        ax42.set_title("ave m [m/yr]")
+        ax42.set_title("ave Melt [m^2/s]")
         # ax42.set_ylim(0, 0.075)
         ax42.set_xlim(-2.51, 6.01)
         ax42.grid("both")
         ax42.set_xticklabels([])
         ax42.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
         #
-        ax43.set_title("sum(m)*dx / QP")
+        ax43.set_title("sum(Melt) / QP")
         ax43.set_ylim(0, 5e-3)
         ax43.set_xlim(-2.51, 6.01)
         ax43.grid("both")
@@ -673,10 +785,10 @@ def plot_plume(figname, path, sec=False, which=[], prx=25e3):
         t0 = 1
         s0 = 35
 
-        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * 86400 * 365 * dx
+        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
 
         cmelt = np.nancumsum(melt)
-        amelt = np.nanmean(melt / dx)
+        amelt = np.nanmean(melt)
 
         color, line, marker = TM.identify(path[vi], tref[-1])
 
@@ -734,7 +846,7 @@ def plot_plume(figname, path, sec=False, which=[], prx=25e3):
 
         g_red = (rho1[-1] - rho2) / rho1[-1] * -g
 
-        flx = plume["flx"] * 86400 * 365
+        flx = plume["flx"]
 
         fr = va_fil / np.sqrt(g_red * d_fil)
         ri = g_red * d_fil / va_fil**2
@@ -831,7 +943,7 @@ def plot_plume(figname, path, sec=False, which=[], prx=25e3):
         # ------------Figure 4-------------
         if "sum" in which:
             ax41.plot(taw, np.nanmax(flx), marker, color=color)
-            ax42.plot(taw, amelt, marker, color=color)
+            ax42.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color)
             ax43.plot(
                 taw, cmelt[np.nanargmax(flx)] / np.nanmax(flx), marker, color=color
             )
@@ -947,11 +1059,11 @@ def plot_plume(figname, path, sec=False, which=[], prx=25e3):
     mdata = pd.DataFrame(mdata)
     for i in np.arange(0, mdata.shape[0]):
         data = mdata.drop(index=i)
-        model = smf.ols("AveMelt ~ T_AW", data=mdata)
+        model = smf.ols("MeltFlux ~ T_AW", data=mdata)
         fit = model.fit()
         print("std err", fit.bse)
         print("slope", fit.params)
-    model = smf.ols("AveMelt ~ T_AW", data=mdata)
+    model = smf.ols("MeltFlux ~ T_AW", data=mdata)
     fit = model.fit()
 
     if "tsu" in which:
@@ -1015,7 +1127,9 @@ def plot_ekin(figname, path, flx=[], prx=[]):
 
         time = data["time"] / 86400
         step = np.squeeze(np.arange(0, np.shape(time)[0]) + 1)
-        upr = np.zeros([np.shape(data["u_all"])[0], coords["nz"]])
+        dz = -coords["dz"][0]
+        dx = coords["dx"][0]
+        saw = data["sref"][-1]
 
         color, line, marker = TM.identify(path[vi], data["tref"][-1])
         u = data["u_all"]
@@ -1023,21 +1137,34 @@ def plot_ekin(figname, path, flx=[], prx=[]):
         t = data["t_all"]
         s = data["s_all"]
         hfac = coords["hfac"]
+        hfacx = np.zeros(len(coords["ice"]))
+        have = np.nanmean(hfac, axis=0)
+        for i in np.arange(0, len(have)):
+            ind = np.where((hfac[:, i] > 0) & (hfac[:, i] < 1))[0]
+            if len(ind) < 1:
+                hfacx[i] = np.max(hfac[:, i])
+            else:
+                hfacx[i] = hfac[ind, i]
 
         s_int = np.nansum(s[:, :, :] * hfac, axis=(1, 2)) / np.sum(hfac, axis=(0, 1))
         t_int = np.nansum(t[:, :, :] * hfac, axis=(1, 2)) / np.sum(hfac, axis=(0, 1))
         ekin = np.nansum(u * u + w * w, axis=(1, 2))
         motQ = np.zeros(np.shape(time))
+        sflx = np.zeros(np.shape(time))
 
         if SHIflx is None:
             melt = np.zeros(np.shape(ekin))
         else:
-            melt = -(SHIflx["fwf_mean"] / 1000 * 86400 * 365)
+            melt = SHIflx["fwf_mean"] / 1000 * dx * 3200
+
 
         pri = int(str(min(np.where(coords["x"] >= prx)[0])))
         for n in np.arange(0, np.shape(data["time"])[0]):
             upr = data["u_all"][n, :, pri]
+            spr = data["s_all"][n, :, pri]
+
             motQ[n] = diagnostics.ot_time_Q(coords, upr)
+            sflx[n] = np.squeeze(np.nansum(spr * upr) / saw * dz)
 
         motQ = np.array(motQ)
 
@@ -1063,6 +1190,13 @@ def plot_ekin(figname, path, flx=[], prx=[]):
             color=color,
         )
 
+        axs[1].plot(
+           step,
+           sflx,
+           "--",
+           color=color,
+        )
+
         axs[2].plot(
             step,
             motQ,
@@ -1071,16 +1205,16 @@ def plot_ekin(figname, path, flx=[], prx=[]):
         )
 
         axs[3].plot(
-            step[:],
-            (t_int - t_int[40]),
-            "-",
+            step,
+            sflx - sflx[40],
+            "--",
             color=color,
         )
 
         axs[3].plot(
-            step[:],
+            step,
             (s_int - s_int[40]),
-            "--",
+            "-",
             color=color,
         )
 

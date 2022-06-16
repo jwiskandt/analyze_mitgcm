@@ -166,7 +166,6 @@ def load_SHIflux(coords, path, start, stop, step, freq=[]):
         SHIflux = mds.rdmds(path + "/SHIfluxDiag", step)
 
         fwf_all.append(SHIflux[0, :])
-        fwf_mean.append(np.nanmean(SHIflux[0, :]))
         hef_all.append(SHIflux[1, :])
         Fh_all.append(SHIflux[2, :])
         Fs_all.append(SHIflux[3, :])
@@ -176,7 +175,6 @@ def load_SHIflux(coords, path, start, stop, step, freq=[]):
     hef_all = np.array(hef_all)
     Fs_all = np.array(Fs_all)
     Fh_all = np.array(Fh_all)
-    fwf_mean = np.array(fwf_mean)
 
     fwf = np.nanmean(fwf_all[aven, 0, :], axis=0)
     fwf[fwf == -np.inf] = 0
@@ -203,7 +201,7 @@ def load_SHIflux(coords, path, start, stop, step, freq=[]):
 
     return {
         "fwfx": fwf,
-        "fwf_mean": fwf_mean,
+        "fwf_all": fwf_all,
         "hefx": hef,
         "fwfz": fwfsl,
         "hefz": hefsl,
