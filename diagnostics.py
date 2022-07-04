@@ -2,7 +2,10 @@ from telnetlib import SB
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import interpolate
+from scipy.ndimage.filters import uniform_filter1d
 from . import loadMIT
+from . import toolsMIT as TM
+import pandas as pd
 
 
 def nan_helper(y):
@@ -144,7 +147,7 @@ def nanave2d(a, w, axis=0):
     return ave
 
 
-def plume(coords, var, ret):
+def plume(coords, var, ret, mask="w"):
     """
     calculate Plume diagnostics
     """
@@ -162,13 +165,30 @@ def plume(coords, var, ret):
     z = coords["z"]
     dz = -coords["dz"][0]
 
-    pthresh = 40 * dz
-    z_plu = np.arange(0, -dz * 41, -dz)
+    pthresh = 35 * dz
+    z_plu = np.arange(0, -pthresh - dz, -dz)
 
     t = np.nanmean(var["t_all"], axis=0)
+    taw = var["tref"][-1]
+    tref = t[:, 2000]
+    dt = np.zeros(np.shape(t))
+    for i in np.arange(0, len(x)):
+        dt[:, i] = t[:, i] - tref
+    # dt = t - taw
     s = np.nanmean(var["s_all"], axis=0)
+    saw = var["sref"][-1]
+    sref = s[:, 2000]
+    ds = np.zeros(np.shape(s))
+    for i in np.arange(0, len(x)):
+        ds[:, i] = s[:, i] - sref
+    # ds = s - saw
     u = np.nanmean(var["u_all"], axis=0)
     w = np.nanmean(var["w_all"], axis=0)
+
+    # fig, ax = plt.subplots(1, 1)
+    # cf = ax.contourf(ds)
+    # fig.colorbar(cf, ax=ax)
+    # fig.show()
 
     pmask = np.ones(np.shape(t)) * hfac
     for i in np.arange(0, np.shape(t)[1]):
@@ -180,8 +200,19 @@ def plume(coords, var, ret):
 
     u, w = loadMIT.uw_ontracer(u, w, coords)
 
-    wthresh = 0
-    pmask[u < wthresh] = 0
+    wthresh = 0.0000
+    tthresh = -0.005
+    sthresh = -0.001
+
+    if mask == "w":
+        pmask[w <= wthresh] = 0
+    elif mask == "u":
+        pmask[u <= wthresh] = 0
+    elif mask == "t":
+        pmask[dt >= tthresh] = 0
+    elif mask == "s":
+        pmask[ds >= sthresh] = 0
+
     t_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
     s_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
     u_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
@@ -218,6 +249,8 @@ def plume(coords, var, ret):
         "u_plu": u_plu,
         "w_plu": w_plu,
         "z_plu": z_plu,
+        "dt": dt,
+        "ds": ds,
     }
     if "flx" in ret:
         ret_dic.update(
@@ -245,3 +278,45 @@ def rho_cont(T, S):
 
     rm = rnil * (1 + tAlpha * (tm - t0) + sBeta * (sm - s0))
     return tm, sm, rm
+
+
+def extract_mdata():
+
+    global mdata
+    coords = TM.coords
+    dx = coords[0]["dx"][-1]
+    ice = coords[0]["ice"]
+    data = TM.data
+    SHIflx = TM.SHIflx
+
+    lam1 = -5.75e-2
+    lam2 = 9.01e-2
+    lam3 = -7.61e-4
+
+    mdata = {"T_AW": [], "MeltFlux": [], "PlumeFlux": [], "TF": [], "AveMelt": []}
+    for vi in np.arange(0, np.shape(data)[0]):
+
+        plumew = plume(coords[vi], data[vi], ["flx"], mask="w")
+        flx = plumew["flx"]
+
+        taw = data[vi]["tref"][-1]
+
+        t_ice = plumew["t_plu"][0, :]
+        s_ice = plumew["s_plu"][0, :]
+        si_fil = uniform_filter1d(s_ice, size=20)
+
+        t_f = lam1 * si_fil + lam2 + ice * lam3
+        TF = t_ice - t_f
+
+        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
+
+        cmelt = np.nancumsum(melt)
+        amelt = np.nanmean(melt)
+        # safe data for fitting
+        mdata["T_AW"].append(taw)
+        mdata["MeltFlux"].append(cmelt[np.nanargmax(flx)])
+        mdata["AveMelt"].append(amelt)
+        mdata["PlumeFlux"].append(np.nanmax(flx))
+        mdata["TF"].append(np.nanmean(TF[0 : np.nanargmax(flx)]))
+
+    mdata = pd.DataFrame(mdata)
