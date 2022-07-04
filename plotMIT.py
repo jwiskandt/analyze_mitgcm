@@ -1,6 +1,6 @@
 from gettext import dgettext
 from importlib import metadata
-from turtle import width
+from turtle import fillcolor, width
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -10,6 +10,7 @@ import pickle
 import csv
 from scipy.ndimage.filters import uniform_filter1d
 import statsmodels.formula.api as smf
+from statsmodels.stats.outliers_influence import OLSInfluence
 
 # import gsw
 import importlib
@@ -767,7 +768,7 @@ def plot_plume(figname, path, which=[], prx=25e3):
         ax103.set_xlim(0, 15)
 
         ax104.set_ylabel("thickness\n u > 0")
-        ax104.set_xlabel("distance along Ice")
+        ax104.set_xlabel("distance along Ice [km]")
         ax104.grid("both")
         ax104.set_xlim(0, 15)
         ax104.set_ylim(0, 120)
@@ -1109,14 +1110,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
 
     mdata = diagnostics.mdata
     mdata.to_csv("meltdata")
-    for i in np.arange(0, mdata.shape[0]):
-        data = mdata.drop(index=i)
-        model = smf.ols("MeltFlux ~ T_AW", data=mdata)
-        fit = model.fit()
-        # print("std err", fit.bse)
-        # print("slope", fit.params)
-    model = smf.ols("MeltFlux ~ T_AW", data=mdata)
-    fit = model.fit()
 
     if "tsu" in which:
         fig1.tight_layout()
@@ -1136,7 +1129,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
     if "sum" in which:
         ax41.plot(mdata["T_AW"], mdata["PlumeFlux"], "x")
         ax42.plot(mdata["T_AW"], mdata["MeltFlux"], "x")
-        ax42.plot(mdata["T_AW"], fit.predict(), linewidth=2)
         ax43.plot(mdata["T_AW"], mdata["MeltFlux"] / mdata["PlumeFlux"], "x")
         fig4.tight_layout()
         # ax46.legend(loc="lower center", ncol=3, bbox_to_anchor=(-0, 0))
@@ -1169,6 +1161,16 @@ def plot_plume(figname, path, which=[], prx=25e3):
         fig9.savefig("plots/TSonly" + figname, facecolor="white", dpi=600)
 
     if "thick" in which:
+        axx101 = ax101.twiny()
+        tickloc = ax101.get_xticks()
+        ticklab = np.zeros(len(tickloc))
+        for i in range(len(tickloc)):
+            ind = np.where(x > tickloc[i])[0]
+            ticklab[i] = np.floor(ice[ind[0]])
+        axx101.set_xticks(tickloc)
+        axx101.set_xlim(0, 15)
+        axx101.set_xticklabels(ticklab)
+        axx101.set_xlabel("ice depth [m]")
         fig10.tight_layout()
         fig10.savefig("plots/D" + figname, facecolor="white", dpi=600)
 
@@ -1493,6 +1495,57 @@ def plot_evox(figname, path, prx):
 
 def plot_melt(figname):
     mdata = diagnostics.mdata
-    print(len(mdata))
-    print(list(range(len(mdata))))
-    print(mdata.take([5]))
+    rmse = np.zeros(len(mdata) - 2)
+    rsq = np.zeros(len(mdata) - 2)
+
+    for i in range(len(mdata) - 2):
+        drop = list(range(i))
+        data = mdata.drop(index=drop)
+        model = smf.ols("MeltFlux ~ T_AW", data=data)
+        fit = model.fit()
+        rmse[i] = np.sqrt(np.sum(fit.resid**2))
+        rsq[i] = fit.rsquared
+
+    diff = np.diff(rmse)
+    drop = np.nanargmax(rsq)
+    data = mdata.drop(index=list(range(0, drop)))
+    model = smf.ols("MeltFlux ~ T_AW", data=data)
+    fit = model.fit()
+    mmodel = smf.ols("MeltFlux ~ T_AW", data=mdata)
+    mfit = mmodel.fit()
+
+    fig = plt.figure(figsize=(12, 3))
+    gs1 = GridSpec(1, 3, figure=fig)
+    ax1 = fig.add_subplot(gs1[:, 0])
+    ax2 = fig.add_subplot(gs1[:, 1])
+    ax3 = fig.add_subplot(gs1[:, 2])
+
+    ax1.plot(mdata["T_AW"], mdata["MeltFlux"], "kx")
+    pl = ax1.plot(data["T_AW"], fit.predict(), linewidth=2)
+    plm = ax1.plot(mdata["T_AW"], mfit.predict(), linewidth=2)
+    ax1.set_xlabel("T_AW")
+    ax1.set_ylabel("total Melt")
+
+    ax22 = ax2.twinx()
+    ax22.plot(mdata["T_AW"][0:-2], rsq, "ko", fillstyle="none")
+    ax2.plot(mdata["T_AW"][0:-2], rmse, "kx")
+    ax2.plot(mdata["T_AW"][drop] * np.ones(len(mdata) - 2), rmse, "k--")
+    ax2.set_ylabel("RMSE (blue x)")
+    ax22.set_ylabel("R**2 (black o)")
+    ax2.set_xlabel("T_AW")
+    ax2.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+    ax22.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+    ax2.set_xlim(ax1.get_xlim())
+
+    ax3.plot(mdata["T_AW"], mdata["T_AW"] * 0, "--k")
+    ax3.plot(mdata["T_AW"], mfit.resid, "x", label="all", color=plm[0].get_color())
+    ax3.plot(data["T_AW"], fit.resid, "x", label="T_AW>=0", color=pl[0].get_color())
+    ax3.set_ylabel("residuals")
+    ax3.set_xlabel("T_AW")
+    ax3.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+    pos3 = ax3.get_position()
+    ax3.set_position([pos3.x0 + 0.07, pos3.y0, pos3.x1 - pos3.x0, pos3.y1 - pos3.y0])
+    ax3.legend()
+
+    fig.tight_layout
+    fig.savefig("plots/{}".format(figname), facecolor="white", dpi=600)

@@ -52,7 +52,7 @@ def short_path(path):
     return path
 
 
-def load_all(path, which, range=[]):
+def load_all(path, which, range=""):
 
     global data, coords, SHIflx, gammas
 
@@ -68,10 +68,10 @@ def load_all(path, which, range=[]):
     gammas = list(gammas)
     for i in np.arange(0, len(path)):
         print("loading {}".format(path[i]))
-        varfile = "mydata/" + path[i] + "/{}var_{}.pkl".format(range,which)
+        varfile = "mydata/" + path[i] + "/{}var_{}.pkl".format(range, which)
         coordsfile = "mydata/" + path[i] + "/coords.pkl"
-        SHIflxfile = "mydata/" + path[i] + "/{}SHIflx_{}.pkl".format(range,which)
-        gammafile = "mydata/" + path[i] + "/{}gamma_{}.pkl".format(range,which)
+        SHIflxfile = "mydata/" + path[i] + "/{}SHIflx_{}.pkl".format(range, which)
+        gammafile = "mydata/" + path[i] + "/{}gamma_{}.pkl".format(range, which)
         with open(varfile, "rb") as a_file:
             data[i] = pickle.load(a_file)
         with open(coordsfile, "rb") as a_file:
