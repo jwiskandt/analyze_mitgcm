@@ -103,6 +103,8 @@ def load_single(path, which):
 
 def identify(path, tref):
 
+    print(path)
+
     lines = ["-", "--", ":", "-."]
     markers = ["o", "x", "v", "^", "<", ">", "d"]
     colors = cm.get_cmap("cividis")
@@ -113,9 +115,23 @@ def identify(path, tref):
         line = lines[1]
         color = "k"
     elif "sgd" in path:
-        marker = markers[2]
-        color = colors2((int(path[3:6]) - 10) / 90)
-        line = lines[0]
+        color = colors((tref + 2.5) / 8.5)
+        if "010" in path:
+            line = lines[0]
+            marker = markers[3]
+            print(line)
+        elif "020" in path:
+            line = lines[2]
+            marker = markers[4]
+            print(marker)
+        elif "050" in path:
+            line = lines[3]
+            marker = markers[5]
+            print(marker)
+        elif "100" in path:
+            line = lines[1]
+            marker = markers[6]
+
     elif "NU" in path:
         marker = markers[3]
         color = colors2((int(path[-1]) - 4) / 2)

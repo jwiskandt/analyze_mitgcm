@@ -11,6 +11,7 @@ import csv
 from scipy.ndimage.filters import uniform_filter1d
 import statsmodels.formula.api as smf
 from statsmodels.stats.outliers_influence import OLSInfluence
+import pandas as pd
 
 # import gsw
 import importlib
@@ -398,6 +399,15 @@ def plot_prof(fig_name, path, prx, Gade=False, SalT=True):
         zmax = TM.coords[vi]["z"][np.nanargmax(upr[vi, i, :])]
         tref = TM.data[vi]["tref"]
         taw[vi] = tref[-1]
+
+        tsdata = [z, np.squeeze(tpr[vi, i, :]), np.squeeze(spr[vi, i, :])]
+        tsref = pd.DataFrame(
+            columns=["z", "tref", "sref"], data=np.flipud(np.transpose(tsdata))
+        )
+        tsref.to_csv("tsref_{}".format(path[vi]), index=False)
+        tsref.to_csv(
+            "../PlumeModel/tsref_{}".format(path[vi]), index=False, header=False
+        )
 
         color, line, marker = TM.identify(path[vi], tref[-1])
 
@@ -948,20 +958,17 @@ def plot_plume(figname, path, which=[], prx=25e3):
                 linestyle="-",
                 color=color,
             )
-            # ax31.plot(
-            #    rho1,
-            #    z,
-            #    linestyle=":",
-            #    color=color,
-            # )
-            # ax31.plot(
-            #    rpr,
-            #    z,
-            #    linestyle="--",
-            #    color=color,
-            # )
+
         # ------------Figure 4-------------
         if "sum" in which:
+            ax41.plot(taw, np.nanmax(flx), marker, color=color)
+            ax42.plot(taw, cmelt[np.nanargmax(flx)], marker, color=color)
+            ax43.plot(
+                taw,
+                cmelt[np.nanargmax(flx)] / np.nanmax(flx),
+                marker,
+                color=color,
+            )
             ax44.plot(
                 taw,
                 np.nanmean(buo[1 : np.nanargmax(flx)]),
@@ -1127,9 +1134,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
         fig3.savefig("plots/buoy" + figname, facecolor="white", dpi=600)
 
     if "sum" in which:
-        ax41.plot(mdata["T_AW"], mdata["PlumeFlux"], "x")
-        ax42.plot(mdata["T_AW"], mdata["MeltFlux"], "x")
-        ax43.plot(mdata["T_AW"], mdata["MeltFlux"] / mdata["PlumeFlux"], "x")
         fig4.tight_layout()
         # ax46.legend(loc="lower center", ncol=3, bbox_to_anchor=(-0, 0))
         fig4.savefig("plots/sum" + figname, facecolor="white")
