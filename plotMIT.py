@@ -3,6 +3,7 @@ from importlib import metadata
 from turtle import fillcolor, width
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from matplotlib.gridspec import GridSpec
 from matplotlib import cm
 from scipy import interpolate
@@ -89,7 +90,7 @@ def plot_sec(path, vi, prx=[25e3], which=["ave"]):
 
         print(np.nanmax(psi_s))
 
-        [fig, axs] = plt.subplots(2, 1, figsize=(8, 8))
+        [fig, axs] = plt.subplots(1, 1, figsize=(8, 8))
 
         axs[0].plot(np.ones(coords[vi]["nz"]) * prx / 1000, z / 1000, "--k")
 
@@ -117,7 +118,7 @@ def plot_sec(path, vi, prx=[25e3], which=["ave"]):
         axs[0].set_xlabel("Distance from grounding line [km]")
         axs[0].set_ylabel("depth in [km]")
 
-        fwf = SHIflx[vi]["fwfx"]
+        fwf = SHIflx[vi]["fwfx"] / 1000
         fwf[ice > 0] = np.nan
         meltflux = np.nansum(fwf) / 1000 * dx
         melt = np.nanmean(fwf) / 1000 * 86400 * 365
@@ -162,6 +163,122 @@ def plot_sec(path, vi, prx=[25e3], which=["ave"]):
 
         cbar1.set_label("Salinity")
         cbar2.set_label("Transport Stream function")
+        plt.tight_layout()
+        fig.savefig("plots/" + path[vi] + figname, facecolor="white", dpi=600)
+        plt.show()
+        plt.close("all")
+
+    if "sec1" in which:
+        figname = "_sec1.png"
+
+        (t, s, u, w) = loadMIT.ave_tsu(
+            data[vi]["t_all"], data[vi]["s_all"], data[vi]["u_all"], data[vi]["w_all"]
+        )
+        ds = np.zeros(np.shape(s))
+        for i in np.arange(0, np.shape(s)[1]):
+            ds[:, i] = s[:, i] - sref
+
+        psi = np.flipud(np.nancumsum(np.flip(u, axis=0) * dz, axis=0))
+        # nan above the ice
+        for i in np.arange(1, coords[vi]["nx"]):
+            t[z > ice[i], i] = float("nan")
+            s[z > ice[i], i] = float("nan")
+            u[z > ice[i], i] = float("nan")
+            w[z > ice[i], i] = float("nan")
+            psi[z > ice[i], i] = float("nan")
+        r = rnil * (1 + tAlpha * t + sBeta * s) - 1000
+
+        rgrid = np.linspace(np.nanmin(r), np.nanmax(r), 101)
+        sgrid = np.linspace(34.9, np.nanmax(s), 21)
+        psi_r = np.zeros([np.shape(rgrid)[0], np.shape(x)[0]])
+        psi_s = np.zeros([np.shape(sgrid)[0], np.shape(x)[0]])
+
+        for i in np.arange(0, len(x)):
+            for ri in np.arange(0, len(rgrid)):
+                ind = np.nonzero(r[:, i] > rgrid[ri])[0]
+                if np.any(ind):
+                    psi_r[ri, i] = np.nansum(np.flip(u[ind, i], axis=0), axis=0) * -dz
+            for si in np.arange(0, len(sgrid) - 1):
+                sind = np.nonzero((s[:, i] >= sgrid[si]) & (s[:, i] < sgrid[si + 1]))[0]
+                if np.any(sind):
+                    psi_s[si, i] = np.nansum(np.flip(u[sind, i], axis=0), axis=0) * -dz
+
+        print(np.nanmax(psi_s))
+
+        [fig, axs] = plt.subplots(1, 1, figsize=(8, 4))
+
+        axs.plot(np.ones(coords[vi]["nz"]) * prx / 1000, z / 1000, "--k")
+        cmap = cm.viridis_r
+        bounds = np.arange(34.9, 35, 0.005)
+        print(bounds)
+        bounds = np.concatenate((np.arange(34, 34.9, 0.1), bounds))
+        print(bounds)
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N, extend="both")
+        cf0 = axs.contourf(
+            x / 1000,
+            z / 1000,
+            s,
+            levels=bounds,
+            extend="both",
+            cmap=cmap,
+            norm=norm,
+        )
+        axs.contour(
+            x / 1000,
+            z / 1000,
+            s,
+            [34.9],
+            colors="white",
+        )
+
+        axs.contour(
+            x / 1000,
+            z / 1000,
+            -psi,
+            np.linspace(0, 10, 5),
+            colors="black",
+            alpha=0.2,
+            linewidth=0.5,
+        )
+        axs.plot(x / 1000, dep / 1000, "k", linewidth=2)
+        axs.plot(x / 1000, ice / 1000, "k", linewidth=2)
+        axs.set_title("Exp: {} - ave. Day {}-{}".format(path[vi], time[0], time[-1]))
+        axs.set_xlabel("Distance from grounding line [km]")
+        axs.set_ylabel("depth in [km]")
+
+        fwf = SHIflx[vi]["fwfx"]
+        fwf[ice > 0] = np.nan
+        meltflux = np.nansum(fwf) / 1000 * dx
+        melt = np.nanmean(fwf) / 1000 * 86400 * 365
+        # axs[0].text(
+        #     1,
+        #     -0.1,
+        #     r"Melt flux: ${:7.3f} m^2/s$".format(meltflux),
+        #     fontsize=12,
+        # )
+        axs.text(
+            1,
+            -0.1,
+            r"Ave melt rate: ${:5.1f} m/yr$".format(melt),
+            fontsize=12,
+        )
+        ax02 = axs.twinx()
+        ax02.plot(x / 1000, fwf, color="green")
+        ax02.set_ylabel("fresh water flux")
+        ax02.tick_params(axis="y", colors="green")
+        ax02.spines["right"].set_color("green")
+        ax02.ticklabel_format(axis="y", style="sci", scilimits=[-1, 2])
+        ax02.set_xlim(0, 30)
+        ax02.set_ylim(2 * np.nanmin(fwf), 0)
+        cbar1 = fig.colorbar(
+            cf0,
+            ax=ax02,
+            orientation="horizontal",
+            fraction=0.08,
+            ticks=[34, 34.9, 35],
+        )  # , anchor=(1.0, 0.1)
+
+        cbar1.set_label("Salinity")
         plt.tight_layout()
         fig.savefig("plots/" + path[vi] + figname, facecolor="white", dpi=600)
         plt.show()
@@ -650,29 +767,39 @@ def plot_plume(figname, path, which=[], prx=25e3):
         ax46.grid("both")
 
     if "select1" in which:
-        fig5 = plt.figure(figsize=(8, 4))
-        gs5 = GridSpec(2, 1, figure=fig5)
+        fig5 = plt.figure(figsize=(8, 6))
+        gs5 = GridSpec(3, 1, figure=fig5)
         ax51 = fig5.add_subplot(gs5[0, 0])
         ax52 = fig5.add_subplot(gs5[1, 0])
+        ax53 = fig5.add_subplot(gs5[2, 0])
         ax51.set_xticklabels([])
-        ax51.set_ylabel("Plume \nthickness")
+        ax51.set_ylabel("Plume \nthickness [m]")
         ax51.grid("both")
         ax51.set_xlim(0, 15)
+        ax51.set_xticks(range(15))
         ax51.set_ylim(-2, 132)
 
-        # ax52.set_xticklabels([])
-        ax52.set_xlabel("Distance along Ice [km]")
-        ax52.set_ylabel("BL veloctiy")
+        ax52.set_xticklabels([])
+        # ax52.set_xlabel("Distance along Ice [km]")
+        ax52.set_ylabel("BL veloctiy [m/s]")
         ax52.grid("both")
         ax52.set_xlim(0, 15)
+        ax52.set_xticks(range(15))
         ax52.set_ylim(-0.01, 0.17)
 
+        # ax52.set_xticklabels([])
+        ax53.set_xlabel("Distance along Ice [km]")
+        ax53.set_ylabel("melt rate [m/s]")
+        ax53.grid("both")
+        ax53.set_xlim(0, 15)
+        ax53.set_xticks(range(15))
+        ax53.set_ylim(None, 5e-6)
+
     if "select2" in which:
-        fig6 = plt.figure(figsize=(9, 3))
-        gs6 = GridSpec(1, 3, figure=fig6)
+        fig6 = plt.figure(figsize=(8, 4))
+        gs6 = GridSpec(1, 2, figure=fig6)
         ax61 = fig6.add_subplot(gs6[0, 0])
         ax62 = fig6.add_subplot(gs6[0, 1])
-        ax63 = fig6.add_subplot(gs6[0, 2])
 
         ax61.set_title("Ave Melt $[m/yr]$")
         ax61.grid("both")
@@ -681,10 +808,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
         ax62.set_title("$U_{BL} [m/s]$")
         ax62.grid("both")
         ax62.set_xlabel("AW Temperature")
-
-        ax63.set_title("$TF = T_{BL} - T_{freeze} [deg C]$")
-        ax63.grid("both")
-        ax63.set_xlabel("AW Temperature")
 
     if "nondim" in which:
         fig7 = plt.figure(figsize=(8, 4))
@@ -703,39 +826,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
         ax72.set_xlabel("distance along Ice")
         ax72.set_ylim(0, 2)
         ax72.set_xlim(0, 15)
-
-    if "TS" in which:
-        fig8 = plt.figure(figsize=(8, 6))
-        gs8 = GridSpec(2, 2, figure=fig8)
-        ax81 = fig8.add_subplot(gs8[0, 0])
-        ax82 = fig8.add_subplot(gs8[1, 0])
-        ax83 = fig8.add_subplot(gs8[1, 1])
-        ax84 = fig8.add_subplot(gs8[0, 1])
-        ax81.set_ylim(-0.6, 0.0)
-        ax81.set_xlim(34.93, 35.001)
-
-        ax82.grid("both")
-        ax82.set_ylim(-1005, 5)
-        # ax82.set_xlim(-0.07, 0)
-        ax82.set_ylabel("Depth [m]")
-        ax82.set_xlabel("$S_{plume}-S_{amb}$")
-
-        ax83.grid("both")
-        # ax83.set_xlim(-0.6, 0.1)
-        ax83.set_ylim(-1005, 5)
-        ax83.set_xlabel("$T_{plume}-T_{amb}$")
-
-        ax84.grid("both")
-        ax84.set_ylim(-1005, 5)
-        # ax84.set_xlim(-0.04, 0)
-        ax84.set_ylabel("Depth [m]")
-        ax84.set_xlabel(r"$\rho_{plume} - \rho_{amb}$")
-
-        # ax81.grid("both")
-        ax81.set_ylabel("Temp")
-        ax81.set_xlabel("Sal")
-        t, s, rm = diagnostics.rho_cont([-0.7, 0.0], [34.92, 35.001])
-        ax81.contour(s, t, rm, 8, colors="k", alpha=0.2, linewidth=1)
 
     if "TSonly" in which:
         fig9 = plt.figure(figsize=(6, 6))
@@ -784,12 +874,60 @@ def plot_plume(figname, path, which=[], prx=25e3):
         ax104.set_ylim(0, 120)
 
     for vi in np.arange(0, np.shape(data)[0]):
+
+        if "UWTSsec" in which:
+            # fig8 = plt.figure(figsize=(8, 6))
+            # gs8 = GridSpec(4, 1, figure=fig8)
+            fig8 = plt.figure(figsize=(8, 10))
+            gs8 = GridSpec(6, 1, figure=fig8)
+            ax81 = fig8.add_subplot(gs8[0, 0])
+            ax82 = fig8.add_subplot(gs8[1, 0])
+            ax83 = fig8.add_subplot(gs8[2, 0])
+            ax84 = fig8.add_subplot(gs8[3, 0])
+            ax85 = fig8.add_subplot(gs8[4, 0])
+            ax86 = fig8.add_subplot(gs8[5, 0])
+
+            ax81.text(1, -100, "Time Averaged U Velocity", fontweight="bold")
+            ax81.set_xlim(0, 15)
+            ax81.set_xticklabels([])
+            ax81.set_ylabel("orth. dist.\nfrom ice [m]")
+
+            ax82.set_xlim(0, 15)
+            ax82.set_xticklabels([])
+            ax82.text(1, -100, "Standard Deviation of U Velocity", fontweight="bold")
+            ax82.set_ylabel("orth. dist.\nfrom ice [m]")
+
+            ax83.text(1, -100, "Time Averaged W Velocity", fontweight="bold")
+            ax83.set_xlim(0, 15)
+            ax83.set_xticklabels([])
+            ax83.set_ylabel("orth. dist.\nfrom ice [m]")
+
+            ax84.set_xlim(0, 15)
+            ax84.set_xticklabels([])
+            ax84.text(1, -100, "Standard Deviation of W Velocity", fontweight="bold")
+            ax84.set_ylabel("orth. dist.\nfrom ice [m]")
+
+            ax85.set_xlim(0, 15)
+            ax85.set_xticklabels([])
+            ax85.text(1, -100, "Plume Temperature", fontweight="bold")
+            ax85.set_ylabel("orth. dist.\nfrom ice [m]")
+
+            ax86.set_xlim(0, 15)
+            ax86.set_xlabel("Distance along Ice [km]")
+            ax86.text(1, -100, "Plume salinity", fontweight="bold")
+            ax86.set_ylabel("orth. dist.\nfrom ice [m]")
+
         plumew = diagnostics.plume(coords[vi], data[vi], ["flx"], mask="w")
         plumeu = diagnostics.plume(coords[vi], data[vi], ["flx"], mask="u")
         plumet = diagnostics.plume(coords[vi], data[vi], ["flx"], mask="t")
         plumes = diagnostics.plume(coords[vi], data[vi], ["flx"], mask="s")
-        t_plu = plumew["t_plu"]
-        s_plu = plumew["s_plu"]
+        t_plu = plumet["t_plu"]
+        s_plu = plumes["s_plu"]
+        u_plu = plumeu["u_plu"]
+        w_plu = plumeu["w_plu"]
+        u_plu_all = plumeu["u_plu_all"]
+        w_plu_all = plumeu["w_plu_all"]
+        z_plu = plumeu["z_plu"]
         pri = np.min(np.where(coords[vi]["x"] >= prx)[0])
         tpr = TM.data[vi]["t_all"][vi, :, pri]
         spr = TM.data[vi]["s_all"][vi, :, pri]
@@ -809,10 +947,10 @@ def plot_plume(figname, path, which=[], prx=25e3):
         t0 = 1
         s0 = 35
 
-        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000 * dx
+        melt = np.abs(SHIflx[vi]["fwfx"]) / 1000
 
-        cmelt = np.nancumsum(melt)
-        amelt = np.nanmean(melt)
+        cmelt = np.nancumsum(melt * dx)
+        amelt = np.nanmean(melt * dx)
 
         color, line, marker = TM.identify(path[vi], tref[-1])
 
@@ -824,7 +962,8 @@ def plot_plume(figname, path, which=[], prx=25e3):
         t_ave = np.nanmean(t_plu, axis=0)
         s_ice = plumew["s_plu"][0, :]
         s_ave = np.nanmean(s_plu, axis=0)
-        vel_plu = np.sqrt(plumew["u_plu"] ** 2 + plumew["w_plu"] ** 2)
+        vel_plu = np.sqrt(u_plu**2 + w_plu**2)
+        vel_plu_all = np.sqrt(u_plu_all**2 + w_plu_all**2)
         vel_ave = np.nanmean(vel_plu, axis=0)
 
         nans, i = diagnostics.nan_helper(vel_ice)
@@ -850,7 +989,7 @@ def plot_plume(figname, path, which=[], prx=25e3):
 
         sa_fil = uniform_filter1d(s_ave, size=20)
         si_fil = uniform_filter1d(s_ice, size=20)
-        vel_fil = uniform_filter1d(vel_ice, size=20)
+        vi_fil = uniform_filter1d(vel_ice, size=20)
         va_fil = uniform_filter1d(vel_ave, size=20)
         ti_fil = uniform_filter1d(t_ice, size=20)
         ta_fil = uniform_filter1d(t_ave, size=20)
@@ -917,7 +1056,7 @@ def plot_plume(figname, path, which=[], prx=25e3):
             ax21.plot(x, flx, color=color, linestyle=line, alpha=0.7, label=path[vi])
             ax22.plot(
                 x,
-                np.nancumsum(melt),
+                np.nancumsum(melt * dx),
                 color=color,
                 linestyle=line,
                 alpha=0.7,
@@ -991,7 +1130,8 @@ def plot_plume(figname, path, which=[], prx=25e3):
         # ------------Figure 5-------------
         if "select1" in which:
             ax51.plot(x, du_fil, color=color, linestyle=line, label=path[vi])
-            ax52.plot(x, vel_fil, color=color, linestyle=line, label=path[vi])
+            ax52.plot(x, vi_fil, color=color, linestyle=line, label=path[vi])
+            ax53.plot(x, melt, color=color, linestyle=line, label=path[vi])
 
         # ------------Figure 6-------------
         if "select2" in which:
@@ -1002,55 +1142,71 @@ def plot_plume(figname, path, which=[], prx=25e3):
             )
             ax63.plot(taw, np.nanmean(TF[0 : np.nanargmax(flx)]), marker, color=color)
 
-        # ------------Figure 6-------------
+        # ------------Figure 7-------------
         if "nondim" in which:
             ax71.plot(x, fr, color=color, linestyle=line, label=path[vi])
             ax72.plot(x, ri, color=color, linestyle=line, label=path[vi])
 
-        if "TS" in which:
-            SG, TG = diagnostics.gadeline(tam=taw, z=500)
-            ax81.plot(
-                SG,
-                TG - taw,
-                "-",
-                color=color,
-                linewidth=1,
+        if "UWTSsec" in which:
+            cf1 = ax81.contourf(
+                x,
+                z_plu,
+                u_plu,
+                levels=np.linspace(0, 0.2, 11),
+                extend="max",
+            )
+            cf2 = ax82.contourf(
+                x,
+                z_plu,
+                np.std(u_plu_all, axis=0),
+                levels=np.linspace(0, 1e-2, 21),
+                extend="max",
+            )
+            cf3 = ax83.contourf(
+                x,
+                z_plu,
+                w_plu,
+                levels=np.linspace(0, 0.02, 11),
+                extend="both",
+            )
+            cf4 = ax84.contourf(
+                x,
+                z_plu,
+                np.std(w_plu_all, axis=0),
+                levels=np.linspace(0, 1e-3, 21),
+            )
+            cf5 = ax85.contourf(
+                x,
+                z_plu,
+                plumet["t_plu"],
+                levels=np.linspace(-0.2, 0.2, 11),
+                extend="both",
+            )
+            cf6 = ax86.contourf(
+                x,
+                z_plu,
+                s_plu,
+                levels=np.linspace(34.9, 35, 11),
             )
 
-            ax81.scatter(
-                sa_fil[1 : np.nanargmax(flx)],
-                ta_fil[1 : np.nanargmax(flx)] - taw,
-                10,
-                marker=".",
-                linewidth=0,
-                color=color,
-                alpha=0.3,
+            fig8.colorbar(cf1, ax=ax81)
+            fig8.colorbar(cf2, ax=ax82)
+            fig8.colorbar(cf3, ax=ax83)
+            fig8.colorbar(cf4, ax=ax84)
+            fig8.colorbar(cf5, ax=ax85)
+            fig8.colorbar(cf6, ax=ax86)
+
+            fig8.tight_layout()
+            fig8.savefig(
+                "plots/plume_TSUWsec_{}.png".format(path[vi]),
+                facecolor="white",
+                dpi=600,
             )
-            ax81.plot(
-                spr,
-                tpr - taw,
-                "--",
-                color=color,
-                linewidth=1,
-            )
-            ax82.plot(
-                sa_fil[1 : np.nanargmax(flx)] - samb[1 : np.nanargmax(flx)],
-                ice[1 : np.nanargmax(flx)],
-                color=color,
-                label=path[vi],
-            )
-            # ax82.plot(spr, z, ":", color=color)
-            ax83.plot(
-                ta_fil[1 : np.nanargmax(flx)] - tamb[1 : np.nanargmax(flx)],
-                ice[1 : np.nanargmax(flx)],
-                color=color,
-            )
-            ax84.plot(
-                rho2[1 : np.nanargmax(flx)] - ramb[1 : np.nanargmax(flx)],
-                ice[1 : np.nanargmax(flx)],
-                color=color,
-                label=path[vi],
-            )
+            # fig8.savefig(
+            #    "plots/plume_UWsec_{}.png".format(path[vi]),
+            #    facecolor="white",
+            #    dpi=600,
+            # )
 
         if "TSonly" in which:
             SG, TG = diagnostics.gadeline(tam=taw, z=1000)
@@ -1085,36 +1241,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
             ax103.plot(x, ds_fil, color=color, linestyle="--")
             ax104.plot(x, du_fil, color=color, linestyle="--")
 
-        if "sec" in which:
-            fig = plt.figure(figsize=(12, 15))
-            ax1 = plt.subplot(3, 1, 1)
-            ax2 = plt.subplot(3, 1, 2)
-            ax3 = plt.subplot(3, 1, 3)
-            axs = [ax1, ax2, ax3]
-
-            cf1 = ax1.contourf(plumew["d"], plumew["z_plu"], plumeu["t_plu"])
-            cf2 = ax2.contourf(plumew["d"], plumew["z_plu"], plumeu["s_plu"])
-            cf3 = ax3.contourf(plumew["d"], plumew["z_plu"], plumeu["w_plu"])
-
-            fig.colorbar(cf1, ax=ax1)
-            fig.colorbar(cf2, ax=ax2)
-            fig.colorbar(cf3, ax=ax3)
-
-            ax1.set_xticklabels([])
-            ax1.set_ylabel(" plume T")
-            ax1.grid("both")
-            ax1.set_xlim(0, 20e3)
-
-            ax2.set_xticklabels([])
-            ax2.set_ylabel(" plume S")
-            ax2.grid("both")
-            ax2.set_xlim(0, 20e3)
-
-            ax3.set_ylabel(" plume W")
-            ax3.grid("both")
-            ax3.set_xlim(0, 20e3)
-            plt.show()
-
     mdata = diagnostics.mdata
     mdata.to_csv("meltdata")
 
@@ -1140,12 +1266,10 @@ def plot_plume(figname, path, which=[], prx=25e3):
 
     if "select1" in which:
         fig5.tight_layout()
-        ax51.legend(loc="upper left", ncol=4)  # , bbox_to_anchor=(0.5, 0))
+        #ax51.legend(loc="upper left", ncol=3)  # , bbox_to_anchor=(0.5, 0))
         fig5.savefig("plots/DTU" + figname, facecolor="white", dpi=600)
 
     if "select2" in which:
-        ax61.plot(mdata["T_AW"], fit.predict(), linewidth=2)
-
         fig6.tight_layout()
         # ax61.legend(loc="lower center", ncol=1, bbox_to_anchor=(0.5, 0))
         fig6.savefig("plots/Melt" + figname, facecolor="white", dpi=600)
@@ -1154,11 +1278,6 @@ def plot_plume(figname, path, which=[], prx=25e3):
         fig7.tight_layout()
         ax71.legend(loc="lower center", ncol=4)
         fig7.savefig("plots/nondim" + figname, facecolor="white", dpi=600)
-
-    if "TS" in which:
-        fig8.tight_layout()
-        ax84.legend(loc="upper right", ncol=1)
-        fig8.savefig("plots/TS" + figname, facecolor="white", dpi=600)
 
     if "TSonly" in which:
         fig9.tight_layout()

@@ -170,19 +170,22 @@ def plume(coords, var, ret, mask="w"):
 
     t = np.nanmean(var["t_all"], axis=0)
     taw = var["tref"][-1]
-    tref = t[:, 2000]
+    tref = var["tref"]
+    tamb = t[:, 2000]
     dt = np.zeros(np.shape(t))
-    for i in np.arange(0, len(x)):
-        dt[:, i] = t[:, i] - tref
     # dt = t - taw
     s = np.nanmean(var["s_all"], axis=0)
     saw = var["sref"][-1]
-    sref = s[:, 2000]
+    sref = var["sref"]
+    samb = s[:, 2000]
     ds = np.zeros(np.shape(s))
     for i in np.arange(0, len(x)):
         ds[:, i] = s[:, i] - sref
+        dt[:, i] = t[:, i] - tref
     # ds = s - saw
     u = np.nanmean(var["u_all"], axis=0)
+    u_all = var["u_all"]
+    w_all = var["w_all"]
     w = np.nanmean(var["w_all"], axis=0)
 
     # fig, ax = plt.subplots(1, 1)
@@ -201,8 +204,8 @@ def plume(coords, var, ret, mask="w"):
     u, w = loadMIT.uw_ontracer(u, w, coords)
 
     wthresh = 0.0000
-    tthresh = -0.005
-    sthresh = -0.001
+    tthresh = -0.01
+    sthresh = -0.01
 
     if mask == "w":
         pmask[w <= wthresh] = 0
@@ -214,21 +217,28 @@ def plume(coords, var, ret, mask="w"):
         pmask[ds >= sthresh] = 0
 
     t_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    dt_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
     s_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
     u_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
     w_plu = np.zeros([int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    u_plu_all = (
+        np.zeros([np.shape(u_all)[0], int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    )
+    w_plu_all = (
+        np.zeros([np.shape(w_all)[0], int(pthresh / dz) + 1, np.shape(d)[0]]) * np.nan
+    )
 
     for i in np.arange(np.shape(d)[0]):
         plu = np.where(pmask[:, i] != 0)
         t_plu[: np.shape(plu)[1], i] = t[plu, i]
+        dt_plu[: np.shape(plu)[1], i] = dt[plu, i]
         s_plu[: np.shape(plu)[1], i] = s[plu, i]
         u_plu[: np.shape(plu)[1], i] = u[plu, i]
         w_plu[: np.shape(plu)[1], i] = w[plu, i]
+        for n in range(np.shape(u_all)[0]):
+            u_plu_all[n, : np.shape(plu)[1], i] = u_all[n, plu, i]
+            w_plu_all[n, : np.shape(plu)[1], i] = w_all[n, plu, i]
 
-    t = t * pmask
-    s = s * pmask
-    u = u * pmask
-    w = w * pmask
     thick = np.nansum(dz * pmask, axis=0)
 
     if "flx" in ret:
@@ -245,9 +255,12 @@ def plume(coords, var, ret, mask="w"):
         "d": d,
         "thick": thick,
         "t_plu": t_plu,
+        "dt_plu": dt_plu,
         "s_plu": s_plu,
         "u_plu": u_plu,
         "w_plu": w_plu,
+        "u_plu_all": u_plu_all,
+        "w_plu_all": w_plu_all,
         "z_plu": z_plu,
         "dt": dt,
         "ds": ds,

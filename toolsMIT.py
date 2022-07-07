@@ -44,6 +44,8 @@ def short_path(path):
             path[i] = path[i][0:6] + path[i][18:]
         elif "100km" in path[i]:
             path[i] = path[i][18:] + "_100km"
+        elif "bc" in path[i]:
+            path[i] = "bc"
         elif "AW02" in path[i]:
             path[i] = "ryder"
         else:
@@ -114,6 +116,10 @@ def identify(path, tref):
         marker = markers[1]
         line = lines[1]
         color = "k"
+    elif "BC" in path:
+        color = "k"
+        marker = markers[-1]
+        line = lines[2]
     elif "sgd" in path:
         color = colors((tref + 2.5) / 8.5)
         if "010" in path:
