@@ -333,3 +333,27 @@ def extract_mdata():
         mdata["TF"].append(np.nanmean(TF[0 : np.nanargmax(flx)]))
 
     mdata = pd.DataFrame(mdata)
+
+
+def extract_prdata(path, prx=21e3, to_file=False):
+
+    global prdata
+    coords = TM.coords
+    z = coords[0]["z"]
+    data = TM.data
+
+    prdata = {"z": z}
+    prdf = pd.DataFrame(prdata)
+    print(prdf.head())
+    for vi in range(np.shape(data)[0]):
+        pri = np.min(np.where(coords[vi]["x"] >= prx)[0])
+        tpr = TM.data[vi]["t_all"][vi, :, pri]
+        spr = TM.data[vi]["s_all"][vi, :, pri]
+
+        prdf["t_{}".format(path[vi])] = tpr
+        prdf["s_{}".format(path[vi])] = spr
+
+        print(prdf.head())
+
+    if to_file:
+        prdf.to_csv("profile_ts_{:.0f}km.csv".format(prx / 1e3), index=False)
