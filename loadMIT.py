@@ -47,6 +47,7 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
         freq = 8640
 
     files = [f for f in os.listdir(path) if "dynDiag" in f]
+    files.sort(key=int)
     print(files)
 
     step = step * freq
