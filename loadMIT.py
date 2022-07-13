@@ -2,6 +2,7 @@ from MITgcmutils import mds
 import numpy as np
 from scipy import interpolate
 from matplotlib import pyplot as plt
+import os
 
 
 def load_coord(path):
@@ -44,6 +45,9 @@ def load_coord(path):
 def load_tsu(coords, path, start, stop, step, freq=[]):
     if freq == []:
         freq = 8640
+
+    files = [f for f in os.listdir(path) if "dynDiag" in f]
+    print(files)
 
     step = step * freq
     steps = np.arange(freq * start, freq * stop + 1, step * 1)
