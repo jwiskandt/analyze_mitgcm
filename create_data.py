@@ -1,6 +1,7 @@
 from . import loadMIT
 import numpy as np
 import pickle
+import gc
 
 
 def create(path, start, stop, which=[]):
@@ -30,3 +31,5 @@ def create(path, start, stop, which=[]):
             gamma = loadMIT.load_gamma(path[i], start, stop)
             with open(gammafile, "wb") as a_file:
                 pickle.dump(gamma, a_file)
+
+    gc.collect()
