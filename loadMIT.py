@@ -136,9 +136,9 @@ def uw_ontracer(u, w, coords):
     return u, w
 
 
-def load_SHIflux(coords, path, start, stop, step, freq=[]):
+def load_SHIflux(path, start, stop):
 
-    files = [f for f in os.listdir(path) if ("dynDiag" in f) and ("data" in f)]
+    files = [f for f in os.listdir(path) if ("SHIfluxDiag" in f) and ("data" in f)]
     files = [s.split(".")[1] for s in files]
     files.sort(key=int)
 
@@ -221,14 +221,9 @@ def load_SHIflux(coords, path, start, stop, step, freq=[]):
     }
 
 
-def load_gamma(
-    path,
-    start,
-    stop,
-    step,
-):
+def load_gamma(path, start, stop):
 
-    files = [f for f in os.listdir(path) if ("dynDiag" in f) and ("data" in f)]
+    files = [f for f in os.listdir(path) if ("SHIgamma" in f) and ("data" in f)]
     files = [s.split(".")[1] for s in files]
     files.sort(key=int)
 
