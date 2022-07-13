@@ -136,7 +136,7 @@ def uw_ontracer(u, w, coords):
     return u, w
 
 
-def load_SHIflux(path, start, stop):
+def load_SHIflux(coords, path, start, stop):
 
     files = [f for f in os.listdir(path) if ("SHIfluxDiag" in f) and ("data" in f)]
     files = [s.split(".")[1] for s in files]
