@@ -8,9 +8,13 @@ def create(path, start, stop, which=[]):
         varfile = "mydata/{path}/var_{start}_{stop}.pkl".format(
             path=path[i], start=start, stop=stop
         )
+        SHIflxfile = "mydata/{path}/SHIflx_{start}_{stop}.pkl".format(
+            path=path[i], start=start, stop=stop
+        )
+        gammafile = "mydata/{path}/gamma_{start}_{stop}.pkl".format(
+            path=path[i], start=start, stop=stop
+        )
         coordsfile = "mydata/" + path[i] + "/coords.pkl"
-        SHIflxfile = "mydata/" + path[i] + "/SHIflx_final.pkl"
-        gammafile = "mydata/" + path[i] + "/gamma_final.pkl"
         coords = loadMIT.load_coord(path[i])
         with open(coordsfile, "wb") as a_file:
             pickle.dump(coords, a_file)
