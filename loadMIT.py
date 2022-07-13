@@ -51,8 +51,8 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
     files.sort(key=int)
 
     # steps = np.arange(freq * start, freq * stop + 1, step * 1)
-    steps = [int(f) for f in files]
-    steps[steps < start] = []
+    files = [int(f) for f in files]
+    steps = [s for s in steps if (s > start) and (s < stop)]
     steps[steps > stop] = []
     step = steps[1] - steps[0]
     print(
