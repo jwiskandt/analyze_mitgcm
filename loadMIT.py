@@ -170,54 +170,20 @@ def load_SHIflux(coords, path, start, stop):
                 time[n] / 3600, np.max(steps) * dt / 3600
             )
         )
-        step = steps[n]
         n = n.astype("int")
 
-        SHIflux = mds.rdmds(path + "/SHIfluxDiag", step)
+        SHIflux = mds.rdmds(path + "/SHIfluxDiag", steps[n])
 
         fwf_all.append(SHIflux[0, :])
         hef_all.append(SHIflux[1, :])
         Fh_all.append(SHIflux[2, :])
         Fs_all.append(SHIflux[3, :])
 
-    aven = np.arange(0, np.shape(hef_all)[0])
-    fwf_all = np.array(fwf_all)
-    hef_all = np.array(hef_all)
-    Fs_all = np.array(Fs_all)
-    Fh_all = np.array(Fh_all)
-
-    fwf = np.nanmean(fwf_all[aven, 0, :], axis=0)
-    fwf[fwf == -np.inf] = 0
-    hef = np.nanmean(hef_all[aven, 0, :], axis=0)
-    Fs = np.nanmean(Fs_all[aven, 0, :], axis=0)
-    Fh = np.nanmean(Fh_all[aven, 0, :], axis=0)
-    fwf = np.array(fwf)
-    hef = np.array(hef)
-    Fs = np.array(Fs)
-    Fh = np.array(Fh)
-
-    zsl = np.linspace(np.min(coords["ice"]), np.max(coords["ice"]), 85)
-    zgrid = coords["ice"][0 : np.argmax(coords["ice"]) + 1]  # noqa: E203
-    fwfgrid = fwf[0 : np.argmax(coords["ice"]) + 1]  # noqa: E203
-    fwfgrid[np.isnan(fwfgrid)] = 0
-    hefgrid = hef[0 : np.argmax(coords["ice"]) + 1]  # noqa: E203
-    ffwf = interpolate.interp1d(zgrid, fwfgrid, kind="cubic")
-    fhef = interpolate.interp1d(zgrid, hefgrid, kind="cubic")
-
-    fwfsl = ffwf(zsl)
-    hefsl = fhef(zsl)
-    fwfsl = np.array(fwfsl)
-    hefsl = np.array(hefsl)
-
     return {
-        "fwfx": fwf,
         "fwf_all": fwf_all,
-        "hefx": hef,
-        "fwfz": fwfsl,
-        "hefz": hefsl,
-        "Fh": Fh,
-        "Fs": Fs,
-        "z": zsl,
+        "hef_all": hef_all,
+        "Fh_all": Fh_all,
+        "Fs_all": Fs_all,
     }
 
 
