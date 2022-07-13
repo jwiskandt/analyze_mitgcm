@@ -52,6 +52,8 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
 
     # steps = np.arange(freq * start, freq * stop + 1, step * 1)
     steps = [int(f) for f in files]
+    steps[steps < start] = []
+    steps[steps > stop] = []
     step = steps[1] - steps[0]
     print(
         " ** load T, S, U from {} ** {}:{}:{}".format(
@@ -63,7 +65,7 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
     nt = np.shape(steps)[0]
 
     tref = np.fromfile(path + "/T.bound", dtype=">f8")
-    print(tref)
+    print(tref[-1])
     tinit = np.fromfile(path + "/T.init", dtype=">f8")
     sref = np.fromfile(path + "/S.bound", dtype=">f8")
     sinit = np.fromfile(path + "/S.init", dtype=">f8")
