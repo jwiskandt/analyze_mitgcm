@@ -52,15 +52,16 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
 
     # steps = np.arange(freq * start, freq * stop + 1, step * 1)
     files = [int(f) for f in files]
-    steps = [s for s in files if (s > start) and (s < stop)]
-    step = steps[1] - steps[0]
+    step = files[1] - files[0]
+    dt = 86400 / step
+    steps = [s for s in files if (s >= start * step) and (s < stop * step)]
+    print(steps)
     print(
         " ** load T, S, U from {} ** {}:{}:{}".format(
             path, start * freq, step, stop * freq
         )
     )
     time = np.zeros(np.shape(steps)[0])
-    dt = 10
     nt = np.shape(steps)[0]
 
     tref = np.fromfile(path + "/T.bound", dtype=">f8")
@@ -129,11 +130,15 @@ def ave_tsu(t_all, s_all, u_all, w_all):
 def uw_ontracer(u, w, coords):
     # interpolate u,w, on tracer points
     for i in np.arange(coords["nx"]):
-        f = interpolate.interp1d(coords["zg"], w[:, i], fill_value="extrapolate")
+        f = interpolate.interp1d(
+            coords["zg"], w[:, i], fill_value="extrapolate"
+        )
         w[:, i] = f(coords["z"])
 
     for j in np.arange(coords["nz"]):
-        f = interpolate.interp1d(coords["xg"], u[j, :], fill_value="extrapolate")
+        f = interpolate.interp1d(
+            coords["xg"], u[j, :], fill_value="extrapolate"
+        )
         u[j, :] = f(coords["x"])
     return u, w
 
