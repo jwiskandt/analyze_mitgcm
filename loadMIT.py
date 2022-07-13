@@ -49,10 +49,10 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
     files = [f for f in os.listdir(path) if ("dynDiag" in f) and ("data" in f)]
     files = [s.split(".")[1] for s in files]
     files.sort(key=int)
-    print(files)
 
-    step = step * freq
-    steps = np.arange(freq * start, freq * stop + 1, step * 1)
+    # steps = np.arange(freq * start, freq * stop + 1, step * 1)
+    steps = int(files)
+    step = steps[1] - steps[0]
     print(
         " ** load T, S, U from {} ** {}:{}:{}".format(
             path, start * freq, step, stop * freq
