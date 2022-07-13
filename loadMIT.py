@@ -42,15 +42,12 @@ def load_coord(path):
     }
 
 
-def load_tsu(coords, path, start, stop, step, freq=[]):
-    if freq == []:
-        freq = 8640
+def load_tsu(path, start, stop):
 
     files = [f for f in os.listdir(path) if ("dynDiag" in f) and ("data" in f)]
     files = [s.split(".")[1] for s in files]
     files.sort(key=int)
 
-    # steps = np.arange(freq * start, freq * stop + 1, step * 1)
     files = [int(f) for f in files]
     step = files[1] - files[0]
     dt = 86400 / step
@@ -58,7 +55,7 @@ def load_tsu(coords, path, start, stop, step, freq=[]):
     print(steps)
     print(
         " ** load T, S, U from {} ** {}:{}:{}".format(
-            path, start * freq, step, stop * freq
+            path, start * step, step, stop * step
         )
     )
     time = np.zeros(np.shape(steps)[0])
@@ -130,31 +127,32 @@ def ave_tsu(t_all, s_all, u_all, w_all):
 def uw_ontracer(u, w, coords):
     # interpolate u,w, on tracer points
     for i in np.arange(coords["nx"]):
-        f = interpolate.interp1d(
-            coords["zg"], w[:, i], fill_value="extrapolate"
-        )
+        f = interpolate.interp1d(coords["zg"], w[:, i], fill_value="extrapolate")
         w[:, i] = f(coords["z"])
 
     for j in np.arange(coords["nz"]):
-        f = interpolate.interp1d(
-            coords["xg"], u[j, :], fill_value="extrapolate"
-        )
+        f = interpolate.interp1d(coords["xg"], u[j, :], fill_value="extrapolate")
         u[j, :] = f(coords["x"])
     return u, w
 
 
 def load_SHIflux(coords, path, start, stop, step, freq=[]):
-    if freq == []:
-        freq = 8640
+
+    files = [f for f in os.listdir(path) if ("dynDiag" in f) and ("data" in f)]
+    files = [s.split(".")[1] for s in files]
+    files.sort(key=int)
+
+    # steps = np.arange(freq * start, freq * stop + 1, step * 1)
+    files = [int(f) for f in files]
+    step = files[1] - files[0]
+    dt = 86400 / step
+    steps = [s for s in files if (s >= start * step) and (s < stop * step)]
     print(
         " ** load Shelf-ice Fluxes {} ** {}:{}:{}".format(
-            path, start * freq, step, stop * freq
+            path, start * step, step, stop * step
         )
     )
-    step = step * freq
-    steps = np.arange(freq * start, freq * stop + 1, step * 1)
     time = np.zeros(np.shape(steps)[0])
-    dt = 10
     nt = np.shape(steps)[0]
 
     hef_all = []
@@ -223,19 +221,28 @@ def load_SHIflux(coords, path, start, stop, step, freq=[]):
     }
 
 
-def load_gamma(path, start, stop, step, freq=[]):
-    if freq == []:
-        freq = 8640
+def load_gamma(
+    path,
+    start,
+    stop,
+    step,
+):
+
+    files = [f for f in os.listdir(path) if ("dynDiag" in f) and ("data" in f)]
+    files = [s.split(".")[1] for s in files]
+    files.sort(key=int)
+
+    # steps = np.arange(freq * start, freq * stop + 1, step * 1)
+    files = [int(f) for f in files]
+    step = files[1] - files[0]
+    dt = 86400 / step
+    steps = [s for s in files if (s >= start * step) and (s < stop * step)]
     print(
-        " ** load Shelf-ice Gammas {} ** {}:{}:{}".format(
-            path, start * freq, step, stop * freq
+        " ** load Shelf-ice Fluxes {} ** {}:{}:{}".format(
+            path, start * step, step, stop * step
         )
     )
-    step = step * freq
-    steps = np.arange(freq * start, freq * stop + 1, step * 1)
-    steps = steps
     time = np.zeros(np.shape(steps)[0])
-    dt = 10
     nt = np.shape(steps)[0]
 
     gammaS = []
