@@ -233,7 +233,7 @@ def load_gamma(path, start, stop):
     dt = 86400 / step
     steps = [s for s in files if (s >= start * step) and (s < stop * step)]
     print(
-        " ** load Shelf-ice Fluxes {} ** {}:{}:{}".format(
+        " ** load Shelf-ice Gammas {} ** {}:{}:{}".format(
             path, start * step, step, stop * step
         )
     )
