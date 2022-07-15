@@ -88,8 +88,6 @@ def plot_sec(path, vi, prx=[25e3], which=["ave"]):
                 if np.any(sind):
                     psi_s[si, i] = np.nansum(np.flip(u[sind, i], axis=0), axis=0) * -dz
 
-        print(np.nanmax(psi_s))
-
         [fig, axs] = plt.subplots(1, 1, figsize=(8, 8))
 
         axs[0].plot(np.ones(coords[vi]["nz"]) * prx / 1000, z / 1000, "--k")
