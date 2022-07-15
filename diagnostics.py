@@ -147,7 +147,7 @@ def nanave2d(a, w, axis=0):
     return ave
 
 
-def plume(coords, var, ret, mask="w"):
+def plume(coords, var, ret=[], mask="w"):
     """
     calculate Plume diagnostics
     """
